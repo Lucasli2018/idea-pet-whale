@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  IntelliJ 插件分发包描述符。
+  IDEA "Install Plugin from Disk..." 期望的 zip 结构：
+    <zip-root>/
+      lib/<artifactId>-<version>.jar    ← 含 META-INF/plugin.xml（IDEA 从这里读描述符）
+      README.md                          ← 可选
+
+  根目录使用 ASCII artifactId 避免跨平台编码问题。
+-->
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.1.1"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.1.1 http://maven.apache.org/xsd/assembly-2.1.1.xsd
+http://maven.apache.org/ASSEMBLY/2.1.1 ">
+
+    <id>plugin</id>
+
+    <formats>
+        <format>zip</format>
+    </formats>
+
+    <includeBaseDirectory>true</includeBaseDirectory>
+    <baseDirectory>${plugin.dist.dirName}</baseDirectory>
+
+    <fileSets>
+        <!-- 业务代码 jar 放进 lib/，jar 内的 META-INF/plugin.xml 是 IDEA 加载描述符的入口 -->
+        <fileSet>
+            <directory>${project.build.directory}</directory>
+            <outputDirectory>lib</outputDirectory>
+            <includes>
+                <include>${project.build.finalName}.jar</include>
+            </includes>
+        </fileSet>
+
+        <!-- README 随分发包一起带走 -->
+        <fileSet>
+            <directory>${project.basedir}</directory>
+            <outputDirectory>.</outputDirectory>
+            <includes>
+                <include>README.md</include>
+            </includes>
+        </fileSet>
+    </fileSets>
+</assembly>

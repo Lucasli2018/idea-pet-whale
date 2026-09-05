@@ -1,0 +1,28 @@
+<idea-plugin url="https://github.com/zhu1090093659/dsh-pet-whale">
+    <id>com.dsh.petwhale</id>
+    <name>DSH Pet Whale</name>
+    <vendor email="dev@example.com" url="https://github.com/zhu1090093659">DSH</vendor>
+
+    <idea-version since-build="231"/>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <description><![CDATA[
+        <h3>DSH Pet Whale — 鲸鱼娘桌宠</h3>
+        <p>在 JetBrains IDEA 2023+ 中陪伴你写代码的鲸鱼娘。空闲时游动、编译时奔跑、测试全绿时跳跃庆祝、失败时沮丧。</p>
+        <p>资源复用自 DSH 桌宠（@linxin666/dsh-pet）的鲸鱼娘主题（含原版 + 精致版两套）。</p>
+    ]]></description>
+
+    <change-notes><![CDATA[
+        <h4>1.0.0</h4>
+        <ul>
+            <li>首个发布版：透明悬浮桌宠、9 状态动画、与编辑器/构建/VCS/测试事件联动、主题（原版/精致版）切换、拖拽定位、隐藏按钮。</li>
+        </ul>
+    ]]></change-notes>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <postStartupActivity implementation="com.dsh.petwhale.startup.PetStartupActivity"/>
+        <editorFactoryListener implementation="com.dsh.petwhale.listener.PetEditorListener"/>
+        <applicationService serviceImplementation="com.dsh.petwhale.state.PetStateService"/>
+    </extensions>
+</idea-plugin>

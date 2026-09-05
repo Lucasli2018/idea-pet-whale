@@ -1,0 +1,7 @@
+target/
+.idea/
+*.iml
+.DS_Store
+
+# transient scripts used only during initial development
+/*.ps1
