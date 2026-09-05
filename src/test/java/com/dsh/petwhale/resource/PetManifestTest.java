@@ -9,8 +9,22 @@ import org.junit.Test;
 
 import static org.junit.Assert.*;
 
+/**
+ * Manifest 解析 + JSON reader 单元测试。
+ *
+ * <p>覆盖：
+ * <ul>
+ *   <li>解析内置两个主题（{@link PetTheme#WHALE} 原版 / {@link PetTheme#WHALE_REFINED} 精致版）</li>
+ *   <li>{@link PetManifest#frameCount} 越界抛 {@link IndexOutOfBoundsException}</li>
+ *   <li>{@link PetManifest#defaultDurationsForRow} 用 idle 节奏兜底</li>
+ *   <li>解析器拒绝缺失的必填字段（fail-closed）</li>
+ *   <li>v1 兼容（无 {@code petManifestVersion} 字段）能正确解析</li>
+ *   <li>{@link JsonReader} 解析嵌套对象、拒绝畸形输入</li>
+ * </ul>
+ */
 public class PetManifestTest {
 
+    /** 原版主题字段正确性。 */
     @Test
     public void parsesWhaleOriginalManifest() {
         PetManifest m = PetManifestParser.parse(PetTheme.WHALE.manifestResource());
@@ -25,6 +39,7 @@ public class PetManifestTest {
         assertEquals(500, idle[0]);
     }
 
+    /** 精致版主题字段正确性。 */
     @Test
     public void parsesWhaleRefinedManifest() {
         PetManifest m = PetManifestParser.parse(PetTheme.WHALE_REFINED.manifestResource());
@@ -32,6 +47,7 @@ public class PetManifestTest {
         assertEquals("鲸鱼娘（精致版）", m.displayName());
     }
 
+    /** 行号越界抛异常（保护内存安全）。 */
     @Test
     public void frameCountThrowsForOutOfRangeRow() {
         PetManifest m = PetManifestParser.parse(PetTheme.WHALE.manifestResource());
@@ -43,6 +59,7 @@ public class PetManifestTest {
         }
     }
 
+    /** 兜底时长表应等于行帧数。 */
     @Test
     public void defaultDurationsForRowFillsShortFrames() {
         PetManifest m = PetManifestParser.parse(PetTheme.WHALE.manifestResource());
@@ -50,6 +67,7 @@ public class PetManifestTest {
         assertEquals(6, d.length);
     }
 
+    /** 解析器拒绝缺 id 的清单（fail-closed）。 */
     @Test
     public void parserRejectsMissingId() {
         JsonObject root = new JsonObject();
@@ -62,6 +80,7 @@ public class PetManifestTest {
         }
     }
 
+    /** v1 兼容：清单无 petManifestVersion 字段也应能解析。 */
     @Test
     public void parserAcceptsLegacyV1FlatFrames() {
         JsonObject root = new JsonObject();
@@ -88,6 +107,7 @@ public class PetManifestTest {
         assertEquals(300, d[0]);
     }
 
+    /** JsonReader 解析嵌套对象 + 数字。 */
     @Test
     public void jsonReaderParsesSampleString() {
         JsonObject root = (JsonObject) new JsonReader(
@@ -101,6 +121,7 @@ public class PetManifestTest {
         assertEquals("v", ((com.dsh.petwhale.resource.PetManifestParser.JsonString) nested.get("k")).value());
     }
 
+    /** JsonReader 拒绝畸形输入（无引号的字符串）。 */
     @Test
     public void jsonReaderRejectsMalformedInput() {
         try {
