@@ -1,8 +1,9 @@
 # DSH Pet Whale — 鲸鱼娘桌宠（JetBrains IDEA 2023.1+）
 
-> Port of [DSH Pet](https://github.com/zhu1090093659/dsh-web-ui/tree/main/packages/dsh-pet) whale-girl theme
-> to JetBrains IDEA. A floating desktop companion that watches your editor and VCS activity and switches
-> animations accordingly.
+> 把 DSH Web 端的鲸鱼娘桌宠移植到 JetBrains IDEA 平台。一只悬浮在屏幕右下角的
+> 桌面宠物，监听你的编辑器和 VCS 活动，自动切换动画状态。
+>
+> 中文详细说明见 [`README.zh.md`](README.zh.md)。
 
 ![whale](src/main/resources/images/whale/previews/idle.gif) ·
 ![running](src/main/resources/images/whale/previews/running.gif) ·
@@ -23,42 +24,11 @@
 | Hide / Summon | Right-click or hover panel hides the pet; a small "召唤鲸鱼娘" button stays at the bottom-right |
 | Always-on-top | A 1-pixel-bordered transparent `JFrame` floats over every editor and tool window |
 
-## Animation contract
-
-The two built-in atlases use the same 8-column × 9-row contract as DSH Pet:
-
-| Row | Animation    | Default frames |
-|---|---|---|
-| 0 | idle         | 6 |
-| 1 | running-right| 8 |
-| 2 | running-left | 8 |
-| 3 | waving       | 4 |
-| 4 | jumping      | 5 |
-| 5 | failed       | 8 |
-| 6 | waiting      | 6 |
-| 7 | running      | 6 |
-| 8 | review       | 6 |
-
-State mapping is the same as the DSH host:
-
-```
-thinking → running     tool → running-right
-review   → review      waiting → waiting
-done     → jumping     failed → failed
-idle     → idle
-```
-
-`done` plays the jumping animation for 2.4 s before settling to `idle`; `failed` plays for the same window
-then falls silent. Both windows are configurable via `PetStateConfig`.
-
 ## Compatibility
 
-| Item | Value |
-|---|---|
-| IDE | IntelliJ IDEA 2023.1+ (`<idea-version since-build="231"/>`) — runs on 2023.1 / 2023.3 / 2024.x / 2025.x |
-| JDK | 17 (IDEA 2023.1+ ships JBR 17; bytecode release 17) |
-| Build | Apache Maven 3.9+, JDK 17 |
-| Resource codec | WebP via `ImageIO` (JDK 21+ ships native WebP; on JDK 17 the plugin logs a clear error if the codec is missing) |
+- IDE: IntelliJ IDEA 2023.1+ (`<idea-version since-build="231"/>`)
+- JDK: 17 (release 17 bytecode)
+- Build: Apache Maven 3.9+
 
 ## Build
 
@@ -68,40 +38,11 @@ mvn -B test                              # runs 20 unit tests
 mvn -B clean verify                      # full clean verify pipeline
 ```
 
-The shipped zip layout (`target/dsh-pet-whale-1.0.0-plugin.zip`):
-
-```
-dsh-pet-whale/
-└── lib/
-    └── dsh-pet-whale-1.0.0.jar     ← contains META-INF/plugin.xml + images/
-```
-
 ## Install
 
 1. **Settings → Plugins → ⚙ → Install Plugin from Disk…**
 2. Pick `target/dsh-pet-whale-1.0.0-plugin.zip` (or your release build).
 3. Restart IDEA. The whale-girl appears at the bottom-right of the screen.
-
-## Repository layout
-
-```
-dsh-pet-whale/
-├── pom.xml                                      # Maven 17 + platform 231
-├── src/assembly/plugin-distribution.xml         # zip layout
-├── src/main/resources/
-│   ├── META-INF/plugin.xml                      # <idea-version since-build="231"/>
-│   └── images/
-│       ├── whale/{pet.json, spritesheet.webp}   # original (copied from dsh-pet)
-│       ├── whale-refined/{pet.json, spritesheet.webp}
-│       └── decorations/whale/{decoration.json, whale-frames.png}
-├── src/main/java/com/dsh/petwhale/
-│   ├── state/                                   # PetStateMachine + 9-state / 7-phase enums
-│   ├── resource/                                # Manifest parser + theme + theme loader
-│   ├── listener/                                # EditorFactoryListener + VirtualFileListener
-│   ├── ui/                                      # PetFrame (transparent always-on-top) + PetPanel + hover
-│   └── startup/PetStartupActivity.java
-└── src/test/java/com/dsh/petwhale/              # 20 unit tests
-```
 
 ## Credits
 
