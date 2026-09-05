@@ -4,12 +4,16 @@
 > 移植到 JetBrains IDEA 平台。一只悬浮在屏幕右下角的桌面宠物，监听你的编辑器和 VCS 活动，
 > 自动切换动画状态。
 
-![idle](src/main/resources/images/whale/previews/idle.gif) ·
-![running](src/main/resources/images/whale/previews/running.gif) ·
-![waving](src/main/resources/images/whale/previews/waving.gif) ·
-![jumping](src/main/resources/images/whale/previews/jumping.gif) ·
-![failed](src/main/resources/images/whale/previews/failed.gif) ·
-![review](src/main/resources/images/whale/previews/review.gif)
+<table>
+  <tr>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/idle.gif" alt="idle" /><br /><b>idle（空闲）</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/running.gif" alt="running" /><br /><b>running（跑动）</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/waving.gif" alt="waving" /><br /><b>waving（挥手）</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/jumping.gif" alt="jumping" /><br /><b>jumping（跳跃）</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/failed.gif" alt="failed" /><br /><b>failed（失败）</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/review.gif" alt="review" /><br /><b>review（审视）</b></td>
+  </tr>
+</table>
 
 ## 项目简介
 

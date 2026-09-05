@@ -5,12 +5,16 @@
 >
 > 中文详细说明见 [`README.zh.md`](README.zh.md)。
 
-![whale](src/main/resources/images/whale/previews/idle.gif) ·
-![running](src/main/resources/images/whale/previews/running.gif) ·
-![waving](src/main/resources/images/whale/previews/waving.gif) ·
-![jumping](src/main/resources/images/whale/previews/jumping.gif) ·
-![failed](src/main/resources/images/whale/previews/failed.gif) ·
-![review](src/main/resources/images/whale/previews/review.gif)
+<table>
+  <tr>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/idle.gif" alt="idle" /><br /><b>idle</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/running.gif" alt="running" /><br /><b>running</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/waving.gif" alt="waving" /><br /><b>waving</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/jumping.gif" alt="jumping" /><br /><b>jumping</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/failed.gif" alt="failed" /><br /><b>failed</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/review.gif" alt="review" /><br /><b>review</b></td>
+  </tr>
+</table>
 
 ## Features
 
