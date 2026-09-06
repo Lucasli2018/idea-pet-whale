@@ -54,23 +54,23 @@ public final class PetHoverPanel {
     private static final int CORNER = 12;
     /** 显示延迟：鼠标进入宠物后多少毫秒才显示（避免划过宠物时频繁闪现） */
     private static final int SHOW_DELAY_MS = 280;
-    /** 隐藏延迟：鼠标离开所有区域后多少毫秒隐藏 */
-    private static final int HIDE_DELAY_MS = 320;
+    /** 隐藏延迟：鼠标离开所有区域后多少毫秒隐藏（200ms，保证 1 秒内立刻消失） */
+    private static final int HIDE_DELAY_MS = 200;
     /** 数值胶囊内边距 */
-    private static final Insets STATS_PADDING = new Insets(4, 12, 4, 12);
+    private static final Insets STATS_PADDING = new Insets(5, 14, 5, 14);
     /** 按钮条内边距 */
-    private static final Insets BAR_PADDING = new Insets(4, 8, 4, 8);
+    private static final Insets BAR_PADDING = new Insets(4, 10, 4, 10);
     /** 按钮间距 */
     private static final int BUTTON_GAP = 2;
 
     // 亮色胶囊配色（浮在桌面上，与 IDE 主题无关，固定浅色系保证可读）
-    private static final Color PILL_BG = new Color(255, 255, 255, 242);
-    private static final Color PILL_BORDER = new Color(205, 208, 216, 255);
-    private static final Color TEXT_MAIN = new Color(70, 74, 84);
-    private static final Color TEXT_ACCENT = new Color(214, 106, 66);
-    private static final Color TEXT_FISH = new Color(38, 110, 190);
-    private static final Color TEXT_LEVEL = new Color(20, 140, 90);
-    private static final Color BTN_HOVER = new Color(235, 239, 246);
+    private static final Color PILL_BG = new Color(255, 255, 255, 245);
+    private static final Color PILL_BORDER = new Color(196, 200, 210, 255);
+    private static final Color TEXT_MAIN = new Color(48, 52, 62);
+    private static final Color TEXT_ACCENT = new Color(196, 84, 48);
+    private static final Color TEXT_FISH = new Color(28, 96, 176);
+    private static final Color TEXT_LEVEL = new Color(16, 126, 82);
+    private static final Color BTN_HOVER = new Color(226, 234, 246);
 
     private final PetFrame frame;
     private final PetStateService service;
@@ -85,6 +85,8 @@ public final class PetHoverPanel {
 
     /** 当前面板是否被显式锁定（鼠标在宠物或任一悬浮层内） */
     private boolean locked;
+    /** 鼠标当前是否在胶囊/按钮条内（区分"移入悬浮层"与"彻底离开"） */
+    private boolean mouseInOverlay;
     /** 宠物锚点：中心 X / 顶边 Y / 底边 Y（屏幕坐标），供刷新内容时重新定位 */
     private int anchorCenterX;
     private int anchorPetTopY;
@@ -97,7 +99,7 @@ public final class PetHoverPanel {
         // === 数值胶囊（宠物上方） ===
         this.statsLabel = new JLabel();
         statsLabel.setForeground(TEXT_MAIN);
-        statsLabel.setFont(statsLabel.getFont().deriveFont(Font.BOLD, 11f));
+        statsLabel.setFont(statsLabel.getFont().deriveFont(Font.BOLD, 12f));
         JPanel statsPanel = new PillPanel(STATS_PADDING);
         statsPanel.add(statsLabel);
         this.statsWindow = new JWindow();
@@ -142,12 +144,14 @@ public final class PetHoverPanel {
         return new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
+                mouseInOverlay = true;
                 locked = true;
                 cancelHide();
             }
 
             @Override
             public void mouseExited(MouseEvent e) {
+                mouseInOverlay = false;
                 locked = false;
                 scheduleHide();
             }
@@ -176,9 +180,14 @@ public final class PetHoverPanel {
         }
     }
 
-    /** 鼠标离开宠物区域时调用：启动隐藏延迟（若鼠标进了悬浮层会自动取消）。 */
+    /**
+     * 鼠标离开宠物区域时调用：解锁并调度隐藏（200ms 内消失）。
+     * 若鼠标只是移入胶囊/按钮条，它们的 mouseEntered 已重新锁定/或即将锁定，
+     * 配合 {@code mouseInOverlay} 标记两个方向的事件顺序都不会误隐藏。
+     */
     public void onPetExited() {
-        if (!locked) {
+        locked = false;
+        if (!mouseInOverlay) {
             scheduleHide();
         }
     }
@@ -237,12 +246,27 @@ public final class PetHoverPanel {
         reposition();
         statsWindow.setVisible(true);
         actionBarWindow.setVisible(true);
+        // 悬浮层出现时，把正在显示的气泡上移到胶囊上方，避免遮挡
+        frame.raiseBubbleAbove(overlayTopY());
     }
 
     private void doHide() {
         cancelHide();
         statsWindow.setVisible(false);
         actionBarWindow.setVisible(false);
+        // 悬浮层收起后，气泡回落到宠物正上方
+        frame.raiseBubbleAbove(anchorPetTopY);
+    }
+
+    /**
+     * 悬浮层占用的顶部锚点：数值胶囊可见时返回胶囊顶部屏幕 Y（气泡应显示在它上方），
+     * 否则返回宠物顶边。供 {@link PetFrame#showBubble} 计算气泡位置，避免与胶囊重叠。
+     */
+    public int overlayTopY() {
+        if (statsWindow.isVisible()) {
+            return statsWindow.getLocation().y;
+        }
+        return anchorPetTopY;
     }
 
     private void reposition() {
@@ -373,11 +397,11 @@ public final class PetHoverPanel {
         FlatButton(String text) {
             super(text);
             setFocusPainted(false);
-            setBorder(BorderFactory.createEmptyBorder(3, 8, 3, 8));
+            setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
             setContentAreaFilled(false);
             setOpaque(false);
             setForeground(TEXT_MAIN);
-            setFont(getFont().deriveFont(Font.PLAIN, 11f));
+            setFont(getFont().deriveFont(Font.BOLD, 12f));
             addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseEntered(MouseEvent e) {

@@ -44,6 +44,8 @@ public final class PetBubble {
     private final BubblePanel panel;
     /** 自动隐藏定时器（单发；每次 show 重启） */
     private final Timer autoHide;
+    /** 最近一次显示时的中心 X（悬浮层出现/消失时重新定位用） */
+    private int lastCenterX = 0;
 
     public PetBubble() {
         window = new JWindow();
@@ -62,27 +64,44 @@ public final class PetBubble {
      * 在锚点上方显示气泡（必须在 EDT 上调用）。
      *
      * @param centerX 桌宠窗口中心的屏幕 X
-     * @param petTop 桌宠窗口顶边的屏幕 Y
+     * @param topY 锚点顶边的屏幕 Y（悬浮层可见时传悬浮层顶边，保证不被遮挡）
      * @param text 台词文本
      */
-    public void showAbove(int centerX, int petTop, String text) {
+    public void showAbove(int centerX, int topY, String text) {
         label.setText(clip(text));
         panel.invalidate();
         window.pack();
+        lastCenterX = centerX;
+        place(centerX, topY);
+        window.setVisible(true);
+        autoHide.restart();
+    }
+
+    /**
+     * 把已显示的气泡重新定位到给定锚点上方（悬浮层出现/消失时调用，双向避免遮挡）。
+     * 气泡未显示时 no-op。
+     *
+     * @param topY 新的锚点顶边屏幕 Y
+     */
+    public void repositionAbove(int topY) {
+        if (!window.isVisible()) return;
+        place(lastCenterX, topY);
+    }
+
+    /** 实际定位：气泡底边在 topY - GAP 之上，横向以 centerX 居中并夹回屏幕内。 */
+    private void place(int centerX, int topY) {
         Dimension size = window.getSize();
         int x = centerX - size.width / 2;
-        int y = petTop - size.height - GAP;
-        // 顶部放不下 → 回落到桌宠下方（仍不遮挡：桌宠窗口顶边 + 间隙）
+        int y = topY - size.height - GAP;
+        // 顶部放不下 → 回落到锚点下方（仍不遮挡：锚点顶边 + 间隙）
         Rectangle screen = GraphicsEnvironment.getLocalGraphicsEnvironment()
                 .getMaximumWindowBounds();
         if (y < screen.y) {
-            y = petTop + GAP;
+            y = topY + GAP;
         }
         // 横向夹在屏幕内
         x = Math.max(screen.x, Math.min(x, screen.x + screen.width - size.width));
         window.setLocation(x, y);
-        window.setVisible(true);
-        autoHide.restart();
     }
 
     /** 立即隐藏（hide/dispose 时同步收起，避免气泡孤零零挂在屏幕上）。 */
