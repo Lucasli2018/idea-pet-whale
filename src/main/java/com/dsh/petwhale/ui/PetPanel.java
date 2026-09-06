@@ -303,7 +303,8 @@ public final class PetPanel extends JPanel {
         return hour >= 22 || hour < 6;
     }
 
-    private void refreshThemeResources() {
+    /** 立即按运行时主题刷新精灵图与帧时长并重绘（设置页切主题的直通刷新入口）。 */
+    void refreshThemeResources() {
         PetAnimation animation = currentAnimation.get();
         themeRef.set(service.currentTheme());
         currentDurations.set(safeDurations(service.currentTheme(), animation, PetResources.rowOf(animation)));

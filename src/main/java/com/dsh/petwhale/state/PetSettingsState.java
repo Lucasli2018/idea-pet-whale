@@ -167,6 +167,11 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
         return "灵魂伴侣";
     }
 
+    /** 把亲密度换算成等级：每 200 点升 1 级，从 Lv.1 起算（悬浮框数值条显示用）。 */
+    public static int intimacyLevel(int intimacy) {
+        return Math.max(0, intimacy) / 200 + 1;
+    }
+
     /** 把持久化的主题名解析回枚举；未知值安全回退到 {@link PetTheme#WHALE}。 */
     @NotNull public PetTheme theme() {
         try {

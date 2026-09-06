@@ -65,6 +65,8 @@ public final class PetFrame {
      * Cancel / 关闭设置页时由 {@link #clearPreviewOverride()} 清除。
      */
     private volatile Integer previewSizePercent;
+    /** 持久化主题是否已同步进运行时服务（仅首次 buildFrame 同步一次） */
+    private boolean themeSynced;
 
     public PetFrame(@NotNull PetStateService service) {
         this.service = service;
@@ -163,7 +165,7 @@ public final class PetFrame {
         Dimension size = frame == null ? new Dimension() : frame.getSize();
         int centerX = visualX + size.width / 2;
         int bottomY = visualY + PetSettingsState.scaledHeight(currentSizePercent());
-        hover.updateLocation(centerX, bottomY);
+        hover.updateLocation(centerX, visualY, bottomY);
     }
 
     /**
@@ -219,9 +221,9 @@ public final class PetFrame {
         SwingUtilities.invokeLater(() -> {
             if (frame == null) return;
             if (hover == null) hover = new PetHoverPanel(this, service);
-            Dimension size = frame.getSize();
             Point anchor = getLocation();
-            hover.onPetEntered(anchor.x + size.width / 2, anchor.y + PetSettingsState.scaledHeight(currentSizePercent()));
+            int bottomY = anchor.y + PetSettingsState.scaledHeight(currentSizePercent());
+            hover.onPetEntered(anchor.x + frame.getSize().width / 2, anchor.y, bottomY);
         });
     }
 
@@ -252,6 +254,19 @@ public final class PetFrame {
         });
     }
 
+    /**
+     * 切换主题并立即刷新宠物外观（设置页实时预览直通路径）。
+     * 不依赖广播链：EDT 内先更新运行时主题，再让面板立刻换装重绘。
+     */
+    public void applyThemePreview(@NotNull com.dsh.petwhale.resource.PetTheme theme) {
+        SwingUtilities.invokeLater(() -> {
+            service.setTheme(theme);
+            if (panel != null) {
+                panel.refreshThemeResources();
+            }
+        });
+    }
+
     /** 设置窗口整体不透明度；平台不支持时静默跳过（保持完全可见）。 */
     private void applyOpacity(int opacityPercent) {
         if (frame == null) return;
@@ -270,7 +285,12 @@ public final class PetFrame {
         int opacityPercent = settings == null
                 ? PetSettingsState.DEFAULT_OPACITY_PERCENT : settings.getOpacityPercent();
 
-        if (settings != null) service.setTheme(settings.theme());
+        if (settings != null && !themeSynced) {
+            // 仅首次构建时把持久化主题同步进运行时服务；之后的重建（隐藏/召唤切换）
+            // 不再覆盖运行时主题，避免设置页已预览切换的主题被旧值顶回去
+            service.setTheme(settings.theme());
+            themeSynced = true;
+        }
 
         frame = new JWindow();
         frame.setAlwaysOnTop(true);

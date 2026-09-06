@@ -7,6 +7,7 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.options.Configurable;
 import com.intellij.openapi.ui.ComboBox;
 import com.intellij.openapi.util.NlsContexts;
+import com.intellij.ui.JBColor;
 import com.intellij.util.ui.JBUI;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -45,8 +46,9 @@ import java.util.List;
  * 持久化到 {@link PetSettingsState}。点击 Cancel / 关闭设置页时通过 {@link #reset()}
  * 把预览回滚到持久化值。</p>
  *
- * <p>设置页自身配色<b>跟随主题</b>：切换"原版 / 精致版"时，卡片底色、强调色、
- * 恢复默认链接会同步换成该主题的配色方案，做到所见即所得。</p>
+ * <p>设置页自身配色<b>跟随 IDEA 主题</b>：全部颜色使用 {@link JBColor} 双值，
+ * IDE 亮色 / 暗色主题下自动切换且字体保持清晰。切换"原版 / 精致版"宠物主题时，
+ * 强调色（海洋蓝 / 珊瑚橙）随宠物主题联动，做到所见即所得。</p>
  *
  * <p>布局纪律（UI 三不原则）：纵向自然堆叠 + 行间 gap，控件互不重叠。</p>
  */
@@ -196,11 +198,12 @@ public final class PetSettingsConfigurable implements Configurable {
     private JComponent buildThemeControl() {
         themeCombo = new ComboBox<>(PetTheme.values());
         themeCombo.setSelectedItem(initialTheme);
-        themeCombo.addActionListener(e -> {
+        // ItemListener：选中项一变化立即触发（比 ActionListener 更可靠，预览零延迟）
+        themeCombo.addItemListener(e -> {
             PetTheme selected = (PetTheme) themeCombo.getSelectedItem();
-            if (selected == null) return;
-            service.setTheme(selected);        // 实时换肤（PetPanel 自愈监听同步渲染）
-            applyPalette(paletteOf(selected)); // 设置页配色跟随主题
+            if (selected != null) {
+                applyThemePreview(selected);
+            }
         });
         return themeCombo;
     }
@@ -230,6 +233,19 @@ public final class PetSettingsConfigurable implements Configurable {
     }
 
     // === 实时预览动作 ===
+
+    /**
+     * 切换宠物主题的实时预览：直通 PetFrame 换肤（不走广播链），同时刷新设置页配色。
+     * frame 未创建时仅更新运行时服务，等 buildFrame 时自然生效。
+     */
+    private void applyThemePreview(PetTheme selected) {
+        service.setTheme(selected);
+        applyPalette(paletteOf(selected));
+        PetFrame frame = currentFrame();
+        if (frame != null) {
+            frame.applyThemePreview(selected);
+        }
+    }
 
     private void applySettingsPreview() {
         PetFrame frame = currentFrame();
@@ -263,9 +279,8 @@ public final class PetSettingsConfigurable implements Configurable {
     }
 
     private void setTheme(PetTheme theme) {
-        themeCombo.setSelectedItem(theme);
-        service.setTheme(theme);
-        applyPalette(paletteOf(theme));
+        themeCombo.setSelectedItem(theme); // 触发 ItemListener → applyThemePreview
+        applyThemePreview(theme);
     }
 
     private void setVisible(boolean shown) {
@@ -310,6 +325,7 @@ public final class PetSettingsConfigurable implements Configurable {
         service.setShowDecorations(state.isShowDecorations());
         PetFrame frame = currentFrame();
         if (frame != null) {
+            frame.applyThemePreview(state.theme()); // 直通刷新，不依赖广播链
             frame.applySettings(state.getSizePercent(), state.getOpacityPercent());
             frame.clearPreviewOverride(); // 持久化值已与预览一致，回到"以持久化值为准"
         }
@@ -334,6 +350,7 @@ public final class PetSettingsConfigurable implements Configurable {
         applyPalette(paletteOf(state.theme()));
         PetFrame frame = currentFrame();
         if (frame != null) {
+            frame.applyThemePreview(state.theme()); // 直通刷新
             frame.applySettings(state.getSizePercent(), state.getOpacityPercent());
             frame.clearPreviewOverride();
             if (state.isStartHidden()) frame.hide(); else frame.unhide();
@@ -372,24 +389,28 @@ public final class PetSettingsConfigurable implements Configurable {
 
     // === 主题配色 ===
 
-    /** 每个主题在设置页里使用的配色方案。 */
+    /** 每个主题在设置页里使用的配色方案（全部 JBColor：亮 / 暗 IDE 主题自动切换）。 */
     private record ThemePalette(Color accent, Color cardBg, Color cardBorder, Color link) {
     }
 
-    /** 原版 → 海洋蓝；精致版 → 珊瑚橙。 */
+    /** 描述文字：主题自适应次级前景色，保证暗色主题下清晰可读。 */
+    private static final JBColor DESC_TEXT = new JBColor(
+            new Color(120, 120, 120), new Color(150, 157, 170));
+
+    /** 原版 → 海洋蓝；精致版 → 珊瑚橙（各带亮 / 暗两套值）。 */
     private static ThemePalette paletteOf(PetTheme theme) {
         if (theme == PetTheme.WHALE_REFINED) {
             return new ThemePalette(
-                    new Color(214, 106, 66),   // 强调色：珊瑚橙
-                    new Color(253, 243, 237),  // 卡片底
-                    new Color(243, 214, 198),  // 卡片边框
-                    new Color(196, 84, 48));   // 链接色
+                    new JBColor(new Color(214, 106, 66), new Color(238, 150, 110)),  // 强调：珊瑚橙
+                    new JBColor(new Color(253, 243, 237), new Color(66, 55, 50)),    // 卡片底
+                    new JBColor(new Color(243, 214, 198), new Color(100, 82, 72)),   // 卡片边框
+                    new JBColor(new Color(196, 84, 48), new Color(242, 160, 122)));  // 链接
         }
         return new ThemePalette(
-                new Color(42, 100, 180),       // 强调色：海洋蓝
-                new Color(239, 246, 253),      // 卡片底
-                new Color(197, 219, 242),      // 卡片边框
-                new Color(42, 100, 180));      // 链接色
+                new JBColor(new Color(42, 100, 180), new Color(114, 166, 232)),      // 强调：海洋蓝
+                new JBColor(new Color(239, 246, 253), new Color(52, 58, 66)),        // 卡片底
+                new JBColor(new Color(197, 219, 242), new Color(76, 84, 96)),        // 卡片边框
+                new JBColor(new Color(42, 100, 180), new Color(126, 176, 240)));     // 链接
     }
 
     /** 把整套配色刷到所有受影响的卡片与链接按钮上。 */
@@ -409,9 +430,10 @@ public final class PetSettingsConfigurable implements Configurable {
 
         JLabel titleLabel = new JLabel(title);
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 14f));
+        titleLabel.setForeground(JBColor.foreground());
         JLabel descLabel = new JLabel(description);
         descLabel.setFont(descLabel.getFont().deriveFont(Font.PLAIN, 12f));
-        descLabel.setForeground(new Color(120, 120, 120));
+        descLabel.setForeground(DESC_TEXT);
 
         JPanel textPanel = new JPanel(new BorderLayout(0, 4));
         textPanel.setOpaque(false);
@@ -454,7 +476,8 @@ public final class PetSettingsConfigurable implements Configurable {
         btn.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
         btn.setOpaque(false);
         btn.setContentAreaFilled(false);
-        btn.setForeground(palette != null ? palette.link() : new Color(42, 100, 180));
+        btn.setForeground(palette != null ? palette.link()
+                : new JBColor(new Color(42, 100, 180), new Color(126, 176, 240)));
         btn.setFont(btn.getFont().deriveFont(Font.PLAIN, 12f));
         btn.setFocusPainted(false);
         themeLinks.add(btn);
@@ -474,10 +497,10 @@ public final class PetSettingsConfigurable implements Configurable {
 
             titleLabel = new JLabel(title);
             titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 16f));
-            titleLabel.setForeground(palette != null ? palette.accent() : new Color(42, 100, 180));
+            titleLabel.setForeground(palette != null ? palette.accent() : JBColor.foreground());
             JLabel subLabel = new JLabel(subtitle);
             subLabel.setFont(subLabel.getFont().deriveFont(Font.PLAIN, 12f));
-            subLabel.setForeground(new Color(120, 120, 120));
+            subLabel.setForeground(DESC_TEXT);
 
             JPanel header = new JPanel(new BorderLayout(0, 4));
             header.setOpaque(false);
@@ -486,8 +509,10 @@ public final class PetSettingsConfigurable implements Configurable {
             header.setBorder(JBUI.Borders.emptyBottom(12));
             add(header);
 
-            cardBg = palette != null ? palette.cardBg() : new Color(245, 246, 248);
-            cardBorder = palette != null ? palette.cardBorder() : new Color(220, 223, 228);
+            cardBg = palette != null ? palette.cardBg() : new JBColor(
+                    new Color(245, 246, 248), new Color(58, 62, 70));
+            cardBorder = palette != null ? palette.cardBorder() : new JBColor(
+                    new Color(220, 223, 228), new Color(78, 84, 94));
             cards.add(this);
         }
 
