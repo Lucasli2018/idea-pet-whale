@@ -18,21 +18,24 @@ import java.awt.Rectangle;
  *
  * <p>设计纪律（UI 三不原则）：
  * <ul>
- *   <li><b>不遮挡动画本体</b>——气泡永远定位在桌宠窗口正上方 8px 处，横向居中；
- *       顶部越界时回落到桌宠下方</li>
+ *   <li><b>不遮挡动画本体与悬浮层</b>——气泡显示在桌宠<b>左侧或右侧</b>（右侧优先，
+ *       右边放不下换左边），垂直方向与宠物<b>头部平行</b>（顶部下方约 1/5 处居中）；
+ *       上方是数值胶囊、下方是档案卡片，互不干扰</li>
  *   <li><b>自动消失</b>——显示 2.5 秒后自动隐藏（单发 Timer，反复触发只重排一次）</li>
  *   <li><b>不进任务栏</b>——和桌宠本体一样用 {@link JWindow}（无边框无图标）</li>
  * </ul>
  *
- * <p>单实例复用：桌宠同时只需要一个气泡，反复 {@link #showAbove} 只是改文本 + 重新定位，
+ * <p>单实例复用：桌宠同时只需要一个气泡，反复 {@link #showBeside} 只是改文本 + 重新定位，
  * 避免频繁建窗（Windows 上每次建透明窗都有肉眼可见的开销）。</p>
  */
 public final class PetBubble {
 
     /** 气泡显示时长（毫秒） */
     static final int AUTO_HIDE_MS = 2500;
-    /** 气泡距桌宠窗口的垂直间隙（像素） */
-    private static final int GAP = 8;
+    /** 气泡与宠物侧边的水平间隙（像素） */
+    private static final int GAP_X = 8;
+    /** 气泡垂直位置相对宠物高度的比例（头部平行） */
+    private static final float HEAD_RATIO = 0.20f;
     /** 文本内边距（像素） */
     private static final int PADDING_X = 10;
     private static final int PADDING_Y = 6;
@@ -44,8 +47,6 @@ public final class PetBubble {
     private final BubblePanel panel;
     /** 自动隐藏定时器（单发；每次 show 重启） */
     private final Timer autoHide;
-    /** 最近一次显示时的中心 X（悬浮层出现/消失时重新定位用） */
-    private int lastCenterX = 0;
 
     public PetBubble() {
         window = new JWindow();
@@ -61,46 +62,41 @@ public final class PetBubble {
     }
 
     /**
-     * 在锚点上方显示气泡（必须在 EDT 上调用）。
+     * 在宠物侧面显示气泡（必须在 EDT 上调用）。
      *
-     * @param centerX 桌宠窗口中心的屏幕 X
-     * @param topY 锚点顶边的屏幕 Y（悬浮层可见时传悬浮层顶边，保证不被遮挡）
+     * @param petLeftX 宠物视觉左边缘的屏幕 X
+     * @param petRightX 宠物视觉右边缘的屏幕 X
+     * @param petTopY 宠物视觉顶边的屏幕 Y
+     * @param spriteHeight 宠物视觉高度（像素），用于计算头部位置
      * @param text 台词文本
      */
-    public void showAbove(int centerX, int topY, String text) {
+    public void showBeside(int petLeftX, int petRightX, int petTopY, int spriteHeight, String text) {
         label.setText(clip(text));
         panel.invalidate();
         window.pack();
-        lastCenterX = centerX;
-        place(centerX, topY);
+        place(petLeftX, petRightX, petTopY, spriteHeight);
         window.setVisible(true);
         autoHide.restart();
     }
 
-    /**
-     * 把已显示的气泡重新定位到给定锚点上方（悬浮层出现/消失时调用，双向避免遮挡）。
-     * 气泡未显示时 no-op。
-     *
-     * @param topY 新的锚点顶边屏幕 Y
-     */
-    public void repositionAbove(int topY) {
-        if (!window.isVisible()) return;
-        place(lastCenterX, topY);
-    }
-
-    /** 实际定位：气泡底边在 topY - GAP 之上，横向以 centerX 居中并夹回屏幕内。 */
-    private void place(int centerX, int topY) {
+    /** 实际定位：右侧优先，放不下换左侧；垂直与宠物头部平行（顶边 + 20% 高度居中）。 */
+    private void place(int petLeftX, int petRightX, int petTopY, int spriteHeight) {
         Dimension size = window.getSize();
-        int x = centerX - size.width / 2;
-        int y = topY - size.height - GAP;
-        // 顶部放不下 → 回落到锚点下方（仍不遮挡：锚点顶边 + 间隙）
         Rectangle screen = GraphicsEnvironment.getLocalGraphicsEnvironment()
                 .getMaximumWindowBounds();
-        if (y < screen.y) {
-            y = topY + GAP;
+
+        // 水平：右侧优先，放不下换左侧，再不行夹回屏幕
+        int x = petRightX + GAP_X;
+        if (x + size.width > screen.x + screen.width) {
+            x = petLeftX - GAP_X - size.width;
         }
-        // 横向夹在屏幕内
         x = Math.max(screen.x, Math.min(x, screen.x + screen.width - size.width));
+
+        // 垂直：与头部平行（宠物顶边 + 20% 高度处气泡垂直居中），夹回屏幕
+        int headY = petTopY + Math.round(spriteHeight * HEAD_RATIO);
+        int y = headY - size.height / 2;
+        y = Math.max(screen.y, Math.min(y, screen.y + screen.height - size.height));
+
         window.setLocation(x, y);
     }
 

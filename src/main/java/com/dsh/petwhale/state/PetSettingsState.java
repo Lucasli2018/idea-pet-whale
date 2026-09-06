@@ -172,6 +172,19 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
         return Math.max(0, intimacy) / 200 + 1;
     }
 
+    /**
+     * 亲密度在当前称号区间内的进度百分比（0~100，悬浮框进度条用）。
+     * 区间与 {@link #intimacyTitle(int)} 一致：0-99 / 100-299 / 300-599 / 600-999 / 1000+。
+     */
+    public static int intimacyProgress(int intimacy) {
+        int v = Math.max(0, intimacy);
+        if (v < 100) return v;                              // 素昧平生：0~99
+        if (v < 300) return (v - 100) * 100 / 200;          // 一见如故
+        if (v < 600) return (v - 300) * 100 / 300;          // 心意相通
+        if (v < 1000) return (v - 600) * 100 / 400;         // 心有灵犀
+        return 100;                                          // 灵魂伴侣：满
+    }
+
     /** 把持久化的主题名解析回枚举；未知值安全回退到 {@link PetTheme#WHALE}。 */
     @NotNull public PetTheme theme() {
         try {

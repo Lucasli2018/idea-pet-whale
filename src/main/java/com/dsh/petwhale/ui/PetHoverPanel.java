@@ -13,6 +13,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JWindow;
@@ -21,11 +22,15 @@ import javax.swing.Timer;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.FontMetrics;
+import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GraphicsEnvironment;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
@@ -33,16 +38,18 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
 /**
- * 鼠标悬停在桌宠上时浮现的交互悬浮层（参考双条式设计，拆成两个独立窗口）：
+ * 鼠标悬停在桌宠上时浮现的交互悬浮层（配色与布局参考用户提供的深色卡片设计图）。
  *
+ * <p>拆成两个独立 {@link JWindow}，均<b>不遮挡宠物本体</b>：
  * <ul>
- *   <li><b>数值胶囊</b>（宠物上方）：亮色圆角胶囊条，显示 亲密度 · 小鱼干 · 点数 · 等级；
- *       鼠标移动到宠物上方区域（悬停宠物）时浮现。</li>
- *   <li><b>按钮条</b>（宠物下方）：亮色圆角条，一排快捷按钮（喂食 / 改名 / 设置 / 隐藏）。</li>
+ *   <li><b>数值胶囊</b>（宠物上方）：深色圆角条，带彩色进度条样式——
+ *       亲密度进度条（粉紫渐变）+ 彩色数字行（小鱼干 / 点数 / 等级）。</li>
+ *   <li><b>档案卡片</b>（宠物下方）：深色圆角卡片——第一行名字（亮青蓝）+ 右侧
+ *       亲密度称号（粉紫），第二行一排深蓝底白字圆角按钮（喂食 / 改名 / 设置 / 隐藏）。</li>
  * </ul>
  *
- * <p>两条与宠物本体是三个独立 {@link JWindow}，共享一套进入/离开延迟计时器：
- * 鼠标在宠物 ↔ 数值胶囊 ↔ 按钮条 之间移动时保持显示，全部离开后才延迟隐藏。</p>
+ * <p>显示纪律：鼠标在宠物 ↔ 胶囊 ↔ 卡片任一区域内都保持显示，
+ * <b>完全离开宠物和悬浮层</b>之后才延迟隐藏（200ms，保证 1 秒内消失且不闪烁）。</p>
  *
  * <p>所有 Swing 操作都限制在 EDT 内；调用方无需提前切线程。</p>
  */
@@ -50,42 +57,53 @@ public final class PetHoverPanel {
 
     /** 悬浮层与宠物边缘的间隙（像素） */
     private static final int GAP = 4;
-    /** 胶囊/按钮条圆角半径 */
+    /** 胶囊/卡片圆角半径 */
     private static final int CORNER = 12;
     /** 显示延迟：鼠标进入宠物后多少毫秒才显示（避免划过宠物时频繁闪现） */
     private static final int SHOW_DELAY_MS = 280;
-    /** 隐藏延迟：鼠标离开所有区域后多少毫秒隐藏（200ms，保证 1 秒内立刻消失） */
+    /** 隐藏延迟：鼠标完全离开宠物和悬浮层后多少毫秒隐藏 */
     private static final int HIDE_DELAY_MS = 200;
-    /** 数值胶囊内边距 */
-    private static final Insets STATS_PADDING = new Insets(5, 14, 5, 14);
-    /** 按钮条内边距 */
-    private static final Insets BAR_PADDING = new Insets(4, 10, 4, 10);
+    /** 胶囊内边距 */
+    private static final Insets STATS_PADDING = new Insets(7, 12, 8, 12);
+    /** 卡片内边距 */
+    private static final Insets CARD_PADDING = new Insets(8, 12, 8, 12);
     /** 按钮间距 */
-    private static final int BUTTON_GAP = 2;
+    private static final int BUTTON_GAP = 4;
+    /** 亲密度进度条尺寸 */
+    private static final Dimension BAR_SIZE = new Dimension(150, 9);
 
-    // 亮色胶囊配色（浮在桌面上，与 IDE 主题无关，固定浅色系保证可读）
-    private static final Color PILL_BG = new Color(255, 255, 255, 245);
-    private static final Color PILL_BORDER = new Color(196, 200, 210, 255);
-    private static final Color TEXT_MAIN = new Color(48, 52, 62);
-    private static final Color TEXT_ACCENT = new Color(196, 84, 48);
-    private static final Color TEXT_FISH = new Color(28, 96, 176);
-    private static final Color TEXT_LEVEL = new Color(16, 126, 82);
-    private static final Color BTN_HOVER = new Color(226, 234, 246);
+    // === 深色系配色（参考用户截图：深蓝黑底 + 彩色数字） ===
+    private static final Color CARD_BG = new Color(28, 30, 46, 246);
+    private static final Color CARD_BORDER = new Color(76, 82, 118, 255);
+    private static final Color TEXT_MAIN = new Color(226, 230, 242);
+    private static final Color TEXT_SUB = new Color(168, 175, 196);
+    private static final Color NAME_COLOR = new Color(126, 196, 255);
+    private static final Color BTN_BG = new Color(47, 58, 120);
+    private static final Color BTN_HOVER = new Color(70, 86, 172);
+    private static final Color BTN_TEXT = new Color(238, 241, 250);
+    private static final Color BAR_TRACK = new Color(58, 62, 88);
+    private static final Color BAR_FILL_FROM = new Color(255, 107, 157);
+    private static final Color BAR_FILL_TO = new Color(186, 120, 255);
+    private static final Color BAR_BORDER = new Color(96, 102, 138);
 
     private final PetFrame frame;
     private final PetStateService service;
-    /** 数值胶囊窗口（宠物上方） */
+    /** 数值胶囊窗口（宠物上方，进度条样式） */
     private final JWindow statsWindow;
-    /** 快捷按钮条窗口（宠物下方） */
-    private final JWindow actionBarWindow;
-    private final JLabel statsLabel;
+    /** 档案卡片窗口（宠物下方） */
+    private final JWindow cardWindow;
+    private final IntimacyBar intimacyBar;
+    private final JLabel intimacyValueLabel;
+    private final JLabel statsLineLabel;
+    private final JLabel nameLabel;
+    private final JLabel titleLabel;
 
     private final Timer showTimer;
     private final Timer hideTimer;
 
     /** 当前面板是否被显式锁定（鼠标在宠物或任一悬浮层内） */
     private boolean locked;
-    /** 鼠标当前是否在胶囊/按钮条内（区分"移入悬浮层"与"彻底离开"） */
+    /** 鼠标当前是否在胶囊/卡片内（区分"移入悬浮层"与"彻底离开"） */
     private boolean mouseInOverlay;
     /** 宠物锚点：中心 X / 顶边 Y / 底边 Y（屏幕坐标），供刷新内容时重新定位 */
     private int anchorCenterX;
@@ -96,33 +114,74 @@ public final class PetHoverPanel {
         this.frame = frame;
         this.service = service;
 
-        // === 数值胶囊（宠物上方） ===
-        this.statsLabel = new JLabel();
-        statsLabel.setForeground(TEXT_MAIN);
-        statsLabel.setFont(statsLabel.getFont().deriveFont(Font.BOLD, 12f));
+        // === 数值胶囊（宠物上方，彩色进度条样式） ===
         JPanel statsPanel = new PillPanel(STATS_PADDING);
-        statsPanel.add(statsLabel);
+        statsPanel.setLayout(new BoxLayout(statsPanel, BoxLayout.Y_AXIS));
+
+        JPanel barRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        barRow.setOpaque(false);
+        JLabel barCaption = new JLabel("亲密度");
+        barCaption.setForeground(TEXT_SUB);
+        barCaption.setFont(barCaption.getFont().deriveFont(Font.PLAIN, 10f));
+        intimacyBar = new IntimacyBar();
+        intimacyValueLabel = new JLabel("0");
+        intimacyValueLabel.setForeground(BAR_FILL_FROM);
+        intimacyValueLabel.setFont(intimacyValueLabel.getFont().deriveFont(Font.BOLD, 12f));
+        barRow.add(barCaption);
+        barRow.add(intimacyBar);
+        barRow.add(intimacyValueLabel);
+        statsPanel.add(barRow);
+        statsPanel.add(Box.createVerticalStrut(5));
+
+        statsLineLabel = new JLabel();
+        statsLineLabel.setForeground(TEXT_MAIN);
+        statsLineLabel.setFont(statsLineLabel.getFont().deriveFont(Font.PLAIN, 11f));
+        statsPanel.add(statsLineLabel);
+
         this.statsWindow = new JWindow();
         statsWindow.setAlwaysOnTop(true);
         statsWindow.setBackground(new Color(0, 0, 0, 0));
         statsWindow.setContentPane(statsPanel);
         statsPanel.addMouseListener(pillHoverListener());
 
-        // === 快捷按钮条（宠物下方） ===
-        JPanel barPanel = new PillPanel(BAR_PADDING);
-        barPanel.setLayout(new BoxLayout(barPanel, BoxLayout.X_AXIS));
-        barPanel.add(buildButton("🍖 喂食", this::onFeed));
-        barPanel.add(Box.createHorizontalStrut(BUTTON_GAP));
-        barPanel.add(buildButton("✎ 改名", this::onRename));
-        barPanel.add(Box.createHorizontalStrut(BUTTON_GAP));
-        barPanel.add(buildButton("⚙ 设置", this::onOpenSettings));
-        barPanel.add(Box.createHorizontalStrut(BUTTON_GAP));
-        barPanel.add(buildButton("✕ 隐藏", this::onHide));
-        this.actionBarWindow = new JWindow();
-        actionBarWindow.setAlwaysOnTop(true);
-        actionBarWindow.setBackground(new Color(0, 0, 0, 0));
-        actionBarWindow.setContentPane(barPanel);
-        barPanel.addMouseListener(pillHoverListener());
+        // === 档案卡片（宠物下方） ===
+        JPanel cardPanel = new PillPanel(CARD_PADDING);
+        cardPanel.setLayout(new BoxLayout(cardPanel, BoxLayout.Y_AXIS));
+
+        JPanel profileRow = new JPanel(new GridBagLayout());
+        profileRow.setOpaque(false);
+        nameLabel = new JLabel();
+        nameLabel.setForeground(NAME_COLOR);
+        nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 12f));
+        titleLabel = new JLabel();
+        titleLabel.setForeground(TEXT_SUB);
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.PLAIN, 10f));
+        GridBagConstraints pc = new GridBagConstraints();
+        pc.gridx = 0;
+        pc.gridy = 0;
+        pc.weightx = 0;
+        pc.anchor = GridBagConstraints.WEST;
+        profileRow.add(nameLabel, pc);
+        pc.gridx = 1;
+        pc.weightx = 1;
+        pc.anchor = GridBagConstraints.EAST;
+        profileRow.add(titleLabel, pc);
+        cardPanel.add(profileRow);
+        cardPanel.add(Box.createVerticalStrut(6));
+
+        JPanel buttonRow = new JPanel(new FlowLayout(FlowLayout.LEFT, BUTTON_GAP, 0));
+        buttonRow.setOpaque(false);
+        buttonRow.add(buildButton("喂食", this::onFeed));
+        buttonRow.add(buildButton("改名", this::onRename));
+        buttonRow.add(buildButton("设置", this::onOpenSettings));
+        buttonRow.add(buildButton("隐藏", this::onHide));
+        cardPanel.add(buttonRow);
+
+        this.cardWindow = new JWindow();
+        cardWindow.setAlwaysOnTop(true);
+        cardWindow.setBackground(new Color(0, 0, 0, 0));
+        cardWindow.setContentPane(cardPanel);
+        cardPanel.addMouseListener(pillHoverListener());
 
         this.showTimer = new Timer(SHOW_DELAY_MS, e -> SwingUtilities.invokeLater(() -> {
             if (locked) {
@@ -182,7 +241,7 @@ public final class PetHoverPanel {
 
     /**
      * 鼠标离开宠物区域时调用：解锁并调度隐藏（200ms 内消失）。
-     * 若鼠标只是移入胶囊/按钮条，它们的 mouseEntered 已重新锁定/或即将锁定，
+     * 若鼠标只是移入胶囊/卡片，它们的 mouseEntered 已重新锁定/或即将锁定，
      * 配合 {@code mouseInOverlay} 标记两个方向的事件顺序都不会误隐藏。
      */
     public void onPetExited() {
@@ -193,7 +252,7 @@ public final class PetHoverPanel {
     }
 
     /**
-     * 宠物窗口移动时调用：实时更新悬浮层锚点，让数值胶囊与按钮条跟随宠物。
+     * 宠物窗口移动时调用：实时更新悬浮层锚点，让胶囊与卡片跟随宠物。
      */
     public void updateLocation(int centerX, int petTopY, int petBottomY) {
         this.anchorCenterX = centerX;
@@ -207,6 +266,7 @@ public final class PetHoverPanel {
     /** 外部强制隐藏（例如点击宠物触发交互时）。 */
     public void hideNow() {
         locked = false;
+        mouseInOverlay = false;
         cancelShow();
         doHide();
     }
@@ -217,7 +277,7 @@ public final class PetHoverPanel {
         cancelHide();
         SwingUtilities.invokeLater(() -> {
             statsWindow.dispose();
-            actionBarWindow.dispose();
+            cardWindow.dispose();
         });
     }
 
@@ -242,31 +302,16 @@ public final class PetHoverPanel {
         }
         refreshContent();
         statsWindow.pack();
-        actionBarWindow.pack();
+        cardWindow.pack();
         reposition();
         statsWindow.setVisible(true);
-        actionBarWindow.setVisible(true);
-        // 悬浮层出现时，把正在显示的气泡上移到胶囊上方，避免遮挡
-        frame.raiseBubbleAbove(overlayTopY());
+        cardWindow.setVisible(true);
     }
 
     private void doHide() {
         cancelHide();
         statsWindow.setVisible(false);
-        actionBarWindow.setVisible(false);
-        // 悬浮层收起后，气泡回落到宠物正上方
-        frame.raiseBubbleAbove(anchorPetTopY);
-    }
-
-    /**
-     * 悬浮层占用的顶部锚点：数值胶囊可见时返回胶囊顶部屏幕 Y（气泡应显示在它上方），
-     * 否则返回宠物顶边。供 {@link PetFrame#showBubble} 计算气泡位置，避免与胶囊重叠。
-     */
-    public int overlayTopY() {
-        if (statsWindow.isVisible()) {
-            return statsWindow.getLocation().y;
-        }
-        return anchorPetTopY;
+        cardWindow.setVisible(false);
     }
 
     private void reposition() {
@@ -278,30 +323,34 @@ public final class PetHoverPanel {
         int sx = anchorCenterX - statsSize.width / 2;
         int sy = anchorPetTopY - statsSize.height - GAP;
         sx = Math.max(screen.x, Math.min(sx, screen.x + screen.width - statsSize.width));
-        // 上方放不下时贴屏幕顶
-        sy = Math.max(screen.y, sy);
+        sy = Math.max(screen.y, sy); // 上方放不下时贴屏幕顶
         statsWindow.setLocation(sx, sy);
 
-        // 按钮条：宠物下方居中
-        Dimension barSize = actionBarWindow.getSize();
-        int bx = anchorCenterX - barSize.width / 2;
-        int by = anchorPetBottomY + GAP;
-        bx = Math.max(screen.x, Math.min(bx, screen.x + screen.width - barSize.width));
+        // 档案卡片：宠物下方居中
+        Dimension cardSize = cardWindow.getSize();
+        int cx = anchorCenterX - cardSize.width / 2;
+        int cy = anchorPetBottomY + GAP;
+        cx = Math.max(screen.x, Math.min(cx, screen.x + screen.width - cardSize.width));
         // 下方放不下（贴任务栏）时改到宠物上方
-        if (by + barSize.height > screen.y + screen.height) {
-            by = anchorPetTopY - barSize.height - GAP;
+        if (cy + cardSize.height > screen.y + screen.height) {
+            cy = anchorPetTopY - cardSize.height - GAP;
         }
-        actionBarWindow.setLocation(bx, Math.max(screen.y, by));
+        cardWindow.setLocation(cx, Math.max(screen.y, cy));
     }
 
     private void refreshContent() {
         PetSettingsState settings = loadSettings();
         if (settings == null) return;
         int intimacy = settings.getIntimacy();
-        statsLabel.setText("亲密 " + intimacy
-                + " · 小鱼干 " + settings.getFishCount()
-                + " · 点数 " + settings.getPoints()
-                + " · Lv." + PetSettingsState.intimacyLevel(intimacy));
+        intimacyBar.setPercent(PetSettingsState.intimacyProgress(intimacy));
+        intimacyValueLabel.setText(String.valueOf(intimacy));
+        statsLineLabel.setText("<html>小鱼干 <font color='#6CB6FF'><b>\u00d7" + settings.getFishCount()
+                + "</b></font>&nbsp;&nbsp;<font color='#FFB86C'><b>" + settings.getPoints()
+                + "</b></font> 点&nbsp;&nbsp;<font color='#4ADE80'><b>Lv."
+                + PetSettingsState.intimacyLevel(intimacy) + "</b></font></html>");
+        nameLabel.setText(settings.getPetName());
+        titleLabel.setText("<html><font color='#C6CCDC'>亲密度</font>&nbsp;<font color='#FF9BC0'><b>"
+                + PetSettingsState.intimacyTitle(intimacy) + "</b></font></html>");
     }
 
     private JButton buildButton(String text, Runnable action) {
@@ -344,7 +393,7 @@ public final class PetHoverPanel {
     private void onOpenSettings() {
         hideNow();
         ShowSettingsUtil.getInstance().editConfigurable(
-                (Component) actionBarWindow,
+                (Component) cardWindow,
                 new PetSettingsConfigurable());
     }
 
@@ -354,16 +403,57 @@ public final class PetHoverPanel {
     }
 
     /**
-     * 亮色圆角胶囊容器：数值胶囊与按钮条共用。每帧先 Clear 清到透明再画圆角，
+     * 亲密度进度条：圆角深色槽 + 粉紫渐变填充，纯自绘组件。
+     */
+    private static final class IntimacyBar extends JComponent {
+        private int percent;
+
+        IntimacyBar() {
+            setOpaque(false);
+            setPreferredSize(BAR_SIZE);
+        }
+
+        void setPercent(int value) {
+            this.percent = Math.max(0, Math.min(100, value));
+            repaint();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            try {
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setComposite(java.awt.AlphaComposite.Clear);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.setComposite(java.awt.AlphaComposite.SrcOver);
+
+                int h = getHeight();
+                // 深色圆角槽
+                g2.setColor(BAR_TRACK);
+                g2.fillRoundRect(0, 0, getWidth() - 1, h - 1, h, h);
+                // 粉紫渐变填充
+                if (percent > 0) {
+                    int fillW = Math.max(h, (getWidth() - 2) * percent / 100);
+                    g2.setPaint(new GradientPaint(0, 0, BAR_FILL_FROM, getWidth(), 0, BAR_FILL_TO));
+                    g2.fillRoundRect(1, 1, fillW - 2, h - 3, h - 2, h - 2);
+                }
+                // 细描边
+                g2.setColor(BAR_BORDER);
+                g2.drawRoundRect(0, 0, getWidth() - 1, h - 1, h, h);
+            } finally {
+                g2.dispose();
+            }
+        }
+    }
+
+    /**
+     * 深色圆角底板容器：数值胶囊与档案卡片共用。每帧先 Clear 清到透明再画圆角，
      * 避免透明窗体残影。
      */
     private static final class PillPanel extends JPanel {
-        private final Insets padding;
-
         PillPanel(Insets padding) {
-            this.padding = padding;
             setOpaque(false);
-            setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.CENTER, 0, 0));
+            setLayout(new FlowLayout(FlowLayout.CENTER, 0, 0));
             setBorder(BorderFactory.createEmptyBorder(
                     padding.top, padding.left, padding.bottom, padding.right));
         }
@@ -378,9 +468,9 @@ public final class PetHoverPanel {
                 g2.fillRect(0, 0, getWidth(), getHeight());
                 g2.setComposite(java.awt.AlphaComposite.SrcOver);
 
-                g2.setColor(PILL_BG);
+                g2.setColor(CARD_BG);
                 g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, CORNER, CORNER);
-                g2.setColor(PILL_BORDER);
+                g2.setColor(CARD_BORDER);
                 g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, CORNER, CORNER);
             } finally {
                 g2.dispose();
@@ -389,7 +479,7 @@ public final class PetHoverPanel {
     }
 
     /**
-     * 亮色扁平按钮：白底胶囊上的文字按钮，悬停浅蓝高亮。
+     * 深蓝底白字圆角按钮（参考设计图配色），悬停提亮。
      */
     private static final class FlatButton extends JButton {
         private boolean hovering;
@@ -397,11 +487,11 @@ public final class PetHoverPanel {
         FlatButton(String text) {
             super(text);
             setFocusPainted(false);
-            setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
+            setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
             setContentAreaFilled(false);
             setOpaque(false);
-            setForeground(TEXT_MAIN);
-            setFont(getFont().deriveFont(Font.BOLD, 12f));
+            setForeground(BTN_TEXT);
+            setFont(getFont().deriveFont(Font.BOLD, 11f));
             addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseEntered(MouseEvent e) {
@@ -422,10 +512,8 @@ public final class PetHoverPanel {
             Graphics2D g2 = (Graphics2D) g.create();
             try {
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                if (hovering) {
-                    g2.setColor(BTN_HOVER);
-                    g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
-                }
+                g2.setColor(hovering ? BTN_HOVER : BTN_BG);
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
                 g2.setColor(getForeground());
                 FontMetrics fm = g2.getFontMetrics();
                 String txt = getText();

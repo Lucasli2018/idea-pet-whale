@@ -204,29 +204,17 @@ public final class PetFrame {
 
     /**
      * 显示台词气泡（EDT 异步）。桌宠未构建或文本为空时 no-op。
-     * 气泡定位在桌宠正上方；悬停数值胶囊可见时锚定在胶囊上方，互不遮挡。
+     * 气泡显示在宠物<b>左侧或右侧</b>（右侧优先、放不下换左侧），垂直与头部平行，
+     * 与上方数值胶囊、下方档案卡片互不遮挡。
      */
     public void showBubble(@NotNull String text) {
         SwingUtilities.invokeLater(() -> {
             if (frame == null || text.isBlank()) return;
             if (bubble == null) bubble = new PetBubble();
-            Dimension pet = frame.getSize();
             Point anchor = getLocation();
-            int topY = anchor.y;
-            if (hover != null) {
-                topY = Math.min(topY, hover.overlayTopY());
-            }
-            bubble.showAbove(anchor.x + pet.width / 2, topY, text);
-        });
-    }
-
-    /**
-     * 把已显示的气泡重新定位到给定锚点上方（悬浮层出现/消失时由 PetHoverPanel 调用，
-     * 双向避免气泡与数值胶囊重叠）。EDT 外调用也安全。
-     */
-    public void raiseBubbleAbove(int topY) {
-        SwingUtilities.invokeLater(() -> {
-            if (bubble != null) bubble.repositionAbove(topY);
+            int w = PetSettingsState.scaledWidth(currentSizePercent());
+            int h = PetSettingsState.scaledHeight(currentSizePercent());
+            bubble.showBeside(anchor.x, anchor.x + w, anchor.y, h, text);
         });
     }
 
