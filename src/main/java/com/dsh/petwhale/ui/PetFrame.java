@@ -218,14 +218,25 @@ public final class PetFrame {
         });
     }
 
-    /** 显示悬停交互面板（鼠标进入宠物时由 PetPanel 调用）。 */
-    public void showHoverPanel() {
+    /** 鼠标停留宠物头部区域（顶边下方 25% 以上）：显示头顶数值胶囊（EDT 异步）。 */
+    public void showStatsOverlay() {
         SwingUtilities.invokeLater(() -> {
             if (frame == null) return;
             if (hover == null) hover = new PetHoverPanel(this, service);
             Point anchor = getLocation();
-            int bottomY = anchor.y + PetSettingsState.scaledHeight(currentSizePercent());
-            hover.onPetEntered(anchor.x + frame.getSize().width / 2, anchor.y, bottomY);
+            int h = PetSettingsState.scaledHeight(currentSizePercent());
+            hover.showZone(true, anchor.x + frame.getSize().width / 2, anchor.y, anchor.y + h);
+        });
+    }
+
+    /** 鼠标停留宠物脚部区域（底边上方 25% 以下）：显示脚底按钮卡片（EDT 异步）。 */
+    public void showCardOverlay() {
+        SwingUtilities.invokeLater(() -> {
+            if (frame == null) return;
+            if (hover == null) hover = new PetHoverPanel(this, service);
+            Point anchor = getLocation();
+            int h = PetSettingsState.scaledHeight(currentSizePercent());
+            hover.showZone(false, anchor.x + frame.getSize().width / 2, anchor.y, anchor.y + h);
         });
     }
 

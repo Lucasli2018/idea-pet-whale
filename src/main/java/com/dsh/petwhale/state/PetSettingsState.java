@@ -185,6 +185,21 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
         return 100;                                          // 灵魂伴侣：满
     }
 
+    /** 小鱼干进度条展示上限（库存达到即满条）。 */
+    public static final int FISH_CAP = 99;
+    /** 点数进度条展示上限（累计达到即满条）。 */
+    public static final int POINTS_CAP = 500;
+
+    /** 小鱼干库存进度百分比（0~100，按 {@link #FISH_CAP} 折算）。 */
+    public static int fishProgress(int fish) {
+        return Math.min(100, Math.max(0, fish) * 100 / FISH_CAP);
+    }
+
+    /** 点数进度百分比（0~100，按 {@link #POINTS_CAP} 折算）。 */
+    public static int pointsProgress(int points) {
+        return Math.min(100, Math.max(0, points) * 100 / POINTS_CAP);
+    }
+
     /** 把持久化的主题名解析回枚举；未知值安全回退到 {@link PetTheme#WHALE}。 */
     @NotNull public PetTheme theme() {
         try {

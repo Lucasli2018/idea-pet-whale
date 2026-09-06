@@ -133,7 +133,7 @@ public final class PetPanel extends JPanel {
 
             @Override
             public void mouseEntered(MouseEvent e) {
-                frame.showHoverPanel();
+                updateHoverZone(e);
             }
 
             @Override
@@ -150,6 +150,12 @@ public final class PetPanel extends JPanel {
                         p.x + e.getX() - pressX,
                         p.y + e.getY() - pressY);
                 draggedSincePress = true;
+            }
+
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                if (pressX >= 0 || pressY >= 0) return; // 拖拽中不判区
+                updateHoverZone(e);
             }
         };
         addMouseListener(press);
@@ -257,6 +263,28 @@ public final class PetPanel extends JPanel {
             return settings == null || settings.isCareEnabled();
         } catch (Throwable t) {
             return true;
+        }
+    }
+
+    /**
+     * 按鼠标在精灵内的纵向位置分区触发悬浮层：
+     * 顶边下方 25% 高度以上（头部）→ 数值胶囊；底边上方 25% 高度以下（脚部）→ 按钮卡片；
+     * 中部与上下跳跃缓冲区不触发。
+     */
+    private void updateHoverZone(MouseEvent e) {
+        int sizePercent = frame.currentSizePercent();
+        int spriteH = PetSettingsState.scaledHeight(sizePercent);
+        int spriteY = e.getY() - petBaseY(sizePercent); // 转换为精灵内 Y（面板顶部有跳跃缓冲）
+        if (spriteY < 0 || spriteY >= spriteH) {
+            frame.hideHoverPanel(); // 落在缓冲区：不触发
+            return;
+        }
+        if (spriteY < spriteH / 4) {
+            frame.showStatsOverlay(); // 头部
+        } else if (spriteY >= spriteH * 3 / 4) {
+            frame.showCardOverlay(); // 脚部
+        } else {
+            frame.hideHoverPanel(); // 中部
         }
     }
 
