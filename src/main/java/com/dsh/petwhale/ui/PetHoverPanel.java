@@ -45,19 +45,19 @@ import java.awt.event.MouseEvent;
 public final class PetHoverPanel {
 
     /** 面板与宠物底边的间隙（像素） */
-    private static final int GAP = 6;
+    private static final int GAP = 3;
     /** 面板圆角半径 */
-    private static final int CORNER = 18;
+    private static final int CORNER = 10;
     /** 显示延迟：鼠标进入宠物后多少毫秒才显示（避免划过宠物时频繁闪现） */
     private static final int SHOW_DELAY_MS = 280;
     /** 隐藏延迟：鼠标离开宠物或面板后多少毫秒隐藏 */
     private static final int HIDE_DELAY_MS = 320;
     /** 面板最小宽度 */
-    private static final int MIN_WIDTH = 200;
+    private static final int MIN_WIDTH = 100;
     /** 面板内边距 */
-    private static final Insets PADDING = new Insets(14, 16, 14, 16);
+    private static final Insets PADDING = new Insets(7, 8, 7, 8);
     /** 按钮间距 */
-    private static final int BUTTON_GAP = 8;
+    private static final int BUTTON_GAP = 4;
 
     private final PetFrame frame;
     private final PetStateService service;
@@ -89,10 +89,10 @@ public final class PetHoverPanel {
         this.intimacyLabel = new JLabel();
         this.fishLabel = new JLabel();
         this.pointsLabel = new JLabel();
-        styleLabel(nameLabel, new Color(220, 225, 235), 14, Font.BOLD);
-        styleLabel(intimacyLabel, new Color(160, 175, 200), 12, Font.PLAIN);
-        styleLabel(fishLabel, new Color(120, 190, 255), 13, Font.BOLD);
-        styleLabel(pointsLabel, new Color(255, 210, 120), 13, Font.BOLD);
+        styleLabel(nameLabel, new Color(220, 225, 235), 11, Font.BOLD);
+        styleLabel(intimacyLabel, new Color(160, 175, 200), 10, Font.PLAIN);
+        styleLabel(fishLabel, new Color(120, 190, 255), 10, Font.BOLD);
+        styleLabel(pointsLabel, new Color(255, 210, 120), 10, Font.BOLD);
 
         this.panel = new HoverPanel(buildContent());
         panel.addMouseListener(new MouseAdapter() {
@@ -254,7 +254,7 @@ public final class PetHoverPanel {
         gbc.anchor = GridBagConstraints.WEST;
         gbc.weightx = 0;
         topRow.add(nameLabel, gbc);
-        gbc.insets = new Insets(0, 10, 0, 0);
+        gbc.insets = new Insets(0, 5, 0, 0);
         gbc.weightx = 1;
         topRow.add(intimacyLabel, gbc);
         root.add(topRow);
@@ -262,12 +262,12 @@ public final class PetHoverPanel {
         // 第二行：小鱼干 + 点数
         JPanel statRow = new JPanel(new GridBagLayout());
         statRow.setOpaque(false);
-        statRow.setBorder(BorderFactory.createEmptyBorder(6, 0, 10, 0));
+        statRow.setBorder(BorderFactory.createEmptyBorder(3, 0, 5, 0));
         GridBagConstraints sg = new GridBagConstraints();
         sg.anchor = GridBagConstraints.WEST;
         sg.weightx = 0;
         statRow.add(fishLabel, sg);
-        sg.insets = new Insets(0, 16, 0, 0);
+        sg.insets = new Insets(0, 8, 0, 0);
         sg.weightx = 1;
         statRow.add(pointsLabel, sg);
         root.add(statRow);
@@ -291,7 +291,7 @@ public final class PetHoverPanel {
         btn.setForeground(new Color(220, 225, 235));
         btn.setBackground(new Color(55, 75, 115));
         btn.setHoverBackground(new Color(75, 100, 150));
-        btn.setFont(btn.getFont().deriveFont(Font.PLAIN, 13f));
+        btn.setFont(btn.getFont().deriveFont(Font.PLAIN, 10f));
         btn.addActionListener(e -> {
             action.run();
             // 按钮操作后通常要刷新面板内容
@@ -342,7 +342,7 @@ public final class PetHoverPanel {
         RoundedButton(String text) {
             super(text);
             setFocusPainted(false);
-            setBorder(BorderFactory.createEmptyBorder(6, 14, 6, 14));
+            setBorder(BorderFactory.createEmptyBorder(3, 7, 3, 7));
             setContentAreaFilled(false);
             setOpaque(false);
             addMouseListener(new MouseAdapter() {
@@ -372,7 +372,7 @@ public final class PetHoverPanel {
                 Color bg = hovering && hoverBackground != null ? hoverBackground : getBackground();
                 if (bg != null) {
                     g2.setColor(bg);
-                    g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
+                    g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 6, 6);
                 }
                 g2.setColor(getForeground());
                 FontMetrics fm = g2.getFontMetrics();

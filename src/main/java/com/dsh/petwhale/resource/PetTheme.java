@@ -12,19 +12,33 @@ package com.dsh.petwhale.resource;
  */
 public enum PetTheme {
     /** 原版鲸鱼娘（来自 dsh-pet 默认资源） */
-    WHALE("/images/whale/pet.json"),
+    WHALE("/images/whale/pet.json", "原版"),
     /** 精致版鲸鱼娘（dsh-pet 内置的 AI 二次精修版） */
-    WHALE_REFINED("/images/whale-refined/pet.json");
+    WHALE_REFINED("/images/whale-refined/pet.json", "精致版");
 
     /** classpath 资源路径，由 {@link PetManifestParser} 读取 */
     private final String manifestResource;
+    /** 用户可见的显示名（设置页下拉、文案使用；枚举 name() 仅作持久化 key） */
+    private final String displayName;
 
-    PetTheme(String manifestResource) {
+    PetTheme(String manifestResource, String displayName) {
         this.manifestResource = manifestResource;
+        this.displayName = displayName;
     }
 
     /** 取该主题对应的清单 classpath 路径。 */
     public String manifestResource() {
         return manifestResource;
+    }
+
+    /** 取用户可见的显示名（"原版" / "精致版"）。 */
+    public String displayName() {
+        return displayName;
+    }
+
+    /** 显示名直接用于下拉框等 UI 控件的呈现。 */
+    @Override
+    public String toString() {
+        return displayName;
     }
 }

@@ -33,6 +33,8 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.RenderingHints;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 设置页：Settings → <b>Tools（工具）</b> → Pet Whale 鲸鱼娘。
@@ -42,6 +44,9 @@ import java.awt.RenderingHints;
  * 状态装饰）都会<b>实时预览</b>到当前桌宠窗口；只有点击 Apply / OK 时才会把值
  * 持久化到 {@link PetSettingsState}。点击 Cancel / 关闭设置页时通过 {@link #reset()}
  * 把预览回滚到持久化值。</p>
+ *
+ * <p>设置页自身配色<b>跟随主题</b>：切换"原版 / 精致版"时，卡片底色、强调色、
+ * 恢复默认链接会同步换成该主题的配色方案，做到所见即所得。</p>
  *
  * <p>布局纪律（UI 三不原则）：纵向自然堆叠 + 行间 gap，控件互不重叠。</p>
  */
@@ -58,6 +63,15 @@ public final class PetSettingsConfigurable implements Configurable {
     private ComboBox<BooleanOption> visibleCombo;
     private ComboBox<BooleanOption> decorationsCombo;
     private JCheckBox careCheck;
+
+    /** 当前主题配色方案（设置页卡片/强调色/链接） */
+    private ThemePalette palette;
+    /** 受主题配色影响的卡片（换主题时刷新） */
+    private final List<CardPanel> cards = new ArrayList<>();
+    /** 受主题配色影响的链接按钮（换主题时刷新） */
+    private final List<JButton> themeLinks = new ArrayList<>();
+    /** 设置页根容器，换主题时整体重绘 */
+    private JComponent root;
 
     /** 打开设置页时捕获的持久化值，用于 Cancel 时回滚预览。 */
     private int initialSizePercent;
@@ -78,6 +92,10 @@ public final class PetSettingsConfigurable implements Configurable {
         service = ApplicationManager.getApplication().getService(PetStateService.class);
         captureInitials();
 
+        palette = paletteOf(initialTheme);
+        cards.clear();
+        themeLinks.clear();
+
         JPanel content = new JPanel();
         content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
         content.setBorder(JBUI.Borders.empty(16));
@@ -85,7 +103,7 @@ public final class PetSettingsConfigurable implements Configurable {
 
         // === 宠物 ===
         JPanel petCard = new CardPanel("宠物", "选择宠物并调整它的显示布局。");
-        petCard.add(buildItem("主题", "选择显示哪只宠物；每只宠物独立命名，可在宠物悬浮面板改名。",
+        petCard.add(buildItem("主题", "切换原版 / 精致版皮肤，选择后宠物与设置页立即换色。",
                 buildThemeControl(), () -> setTheme(PetTheme.WHALE)));
         petCard.add(buildItem("状态装饰", "在宠物状态气泡里显示喷水、小鱼等状态装饰；关闭后气泡只剩文字。",
                 buildDecorationsControl(), () -> setDecorations(true)));
@@ -95,9 +113,9 @@ public final class PetSettingsConfigurable implements Configurable {
 
         // === 显示 ===
         JPanel displayCard = new CardPanel("显示", "调整桌宠的大小、透明度与可见性。");
-        displayCard.add(buildItem("大小", "调整鲸鱼娘的显示尺寸。",
+        displayCard.add(buildItem("大小", "拖动滑块实时预览鲸鱼娘的显示尺寸。",
                 buildSizeControl(), () -> setSize(PetSettingsState.DEFAULT_SIZE_PERCENT)));
-        displayCard.add(buildItem("不透明度", "调整鲸鱼娘窗口的透明程度。",
+        displayCard.add(buildItem("不透明度", "拖动滑块实时预览鲸鱼娘窗口的透明程度。",
                 buildOpacityControl(), () -> setOpacity(PetSettingsState.DEFAULT_OPACITY_PERCENT)));
         displayCard.add(buildItem("显示宠物", "关闭后宠物隐藏，可从宠物悬浮面板重新召唤。",
                 buildVisibleControl(), () -> setVisible(false)));
@@ -116,6 +134,7 @@ public final class PetSettingsConfigurable implements Configurable {
         JPanel wrapper = new JPanel(new BorderLayout());
         wrapper.setOpaque(false);
         wrapper.add(content, BorderLayout.NORTH);
+        this.root = wrapper;
         return wrapper;
     }
 
@@ -179,7 +198,9 @@ public final class PetSettingsConfigurable implements Configurable {
         themeCombo.setSelectedItem(initialTheme);
         themeCombo.addActionListener(e -> {
             PetTheme selected = (PetTheme) themeCombo.getSelectedItem();
-            if (selected != null) service.setTheme(selected);
+            if (selected == null) return;
+            service.setTheme(selected);        // 实时换肤（PetPanel 自愈监听同步渲染）
+            applyPalette(paletteOf(selected)); // 设置页配色跟随主题
         });
         return themeCombo;
     }
@@ -244,6 +265,7 @@ public final class PetSettingsConfigurable implements Configurable {
     private void setTheme(PetTheme theme) {
         themeCombo.setSelectedItem(theme);
         service.setTheme(theme);
+        applyPalette(paletteOf(theme));
     }
 
     private void setVisible(boolean shown) {
@@ -289,6 +311,7 @@ public final class PetSettingsConfigurable implements Configurable {
         PetFrame frame = currentFrame();
         if (frame != null) {
             frame.applySettings(state.getSizePercent(), state.getOpacityPercent());
+            frame.clearPreviewOverride(); // 持久化值已与预览一致，回到"以持久化值为准"
         }
         captureInitials(); // 应用成功后，新的持久化值作为回滚基线
     }
@@ -308,9 +331,11 @@ public final class PetSettingsConfigurable implements Configurable {
 
         service.setTheme(state.theme());
         service.setShowDecorations(state.isShowDecorations());
+        applyPalette(paletteOf(state.theme()));
         PetFrame frame = currentFrame();
         if (frame != null) {
             frame.applySettings(state.getSizePercent(), state.getOpacityPercent());
+            frame.clearPreviewOverride();
             if (state.isStartHidden()) frame.hide(); else frame.unhide();
         }
         captureInitials();
@@ -318,6 +343,14 @@ public final class PetSettingsConfigurable implements Configurable {
 
     @Override
     public void disposeUIResources() {
+        // Cancel / 直接关闭设置页：把所有预览回滚到持久化值
+        try {
+            if (isModified()) reset();
+        } catch (Throwable ignored) {
+        }
+        PetFrame frame = currentFrame();
+        if (frame != null) frame.clearPreviewOverride();
+
         state = null;
         service = null;
         sizeSlider = null;
@@ -326,6 +359,10 @@ public final class PetSettingsConfigurable implements Configurable {
         visibleCombo = null;
         decorationsCombo = null;
         careCheck = null;
+        cards.clear();
+        themeLinks.clear();
+        root = null;
+        palette = null;
     }
 
     /** 取当前桌宠窗口；未创建时返回 null。 */
@@ -333,9 +370,39 @@ public final class PetSettingsConfigurable implements Configurable {
         return PetStartupFrameHolder.current();
     }
 
+    // === 主题配色 ===
+
+    /** 每个主题在设置页里使用的配色方案。 */
+    private record ThemePalette(Color accent, Color cardBg, Color cardBorder, Color link) {
+    }
+
+    /** 原版 → 海洋蓝；精致版 → 珊瑚橙。 */
+    private static ThemePalette paletteOf(PetTheme theme) {
+        if (theme == PetTheme.WHALE_REFINED) {
+            return new ThemePalette(
+                    new Color(214, 106, 66),   // 强调色：珊瑚橙
+                    new Color(253, 243, 237),  // 卡片底
+                    new Color(243, 214, 198),  // 卡片边框
+                    new Color(196, 84, 48));   // 链接色
+        }
+        return new ThemePalette(
+                new Color(42, 100, 180),       // 强调色：海洋蓝
+                new Color(239, 246, 253),      // 卡片底
+                new Color(197, 219, 242),      // 卡片边框
+                new Color(42, 100, 180));      // 链接色
+    }
+
+    /** 把整套配色刷到所有受影响的卡片与链接按钮上。 */
+    private void applyPalette(ThemePalette next) {
+        palette = next;
+        for (CardPanel card : cards) card.applyPalette(next);
+        for (JButton btn : themeLinks) btn.setForeground(next.link());
+        if (root != null) root.repaint();
+    }
+
     // === 卡片式 UI 辅助 ===
 
-    private static JPanel buildItem(String title, String description, JComponent control, Runnable restoreDefault) {
+    private JPanel buildItem(String title, String description, JComponent control, Runnable restoreDefault) {
         JPanel row = new JPanel(new GridBagLayout());
         row.setOpaque(false);
         row.setBorder(JBUI.Borders.empty(10, 14));
@@ -381,27 +448,33 @@ public final class PetSettingsConfigurable implements Configurable {
         return row;
     }
 
-    private static JButton linkButton(String text) {
+    private JButton linkButton(String text) {
         JButton btn = new JButton(text);
         btn.setUI(new BasicButtonUI());
         btn.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
         btn.setOpaque(false);
         btn.setContentAreaFilled(false);
-        btn.setForeground(new Color(70, 120, 200));
+        btn.setForeground(palette != null ? palette.link() : new Color(42, 100, 180));
         btn.setFont(btn.getFont().deriveFont(Font.PLAIN, 12f));
         btn.setFocusPainted(false);
+        themeLinks.add(btn);
         return btn;
     }
 
-    /** 圆角浅色卡片容器。 */
-    private static final class CardPanel extends JPanel {
+    /** 圆角浅色卡片容器，配色随主题刷新。 */
+    private final class CardPanel extends JPanel {
+        private final JLabel titleLabel;
+        private Color cardBg;
+        private Color cardBorder;
+
         CardPanel(String title, String subtitle) {
             setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
             setOpaque(false);
             setBorder(JBUI.Borders.empty(16, 18));
 
-            JLabel titleLabel = new JLabel(title);
+            titleLabel = new JLabel(title);
             titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 16f));
+            titleLabel.setForeground(palette != null ? palette.accent() : new Color(42, 100, 180));
             JLabel subLabel = new JLabel(subtitle);
             subLabel.setFont(subLabel.getFont().deriveFont(Font.PLAIN, 12f));
             subLabel.setForeground(new Color(120, 120, 120));
@@ -412,6 +485,17 @@ public final class PetSettingsConfigurable implements Configurable {
             header.add(subLabel, BorderLayout.CENTER);
             header.setBorder(JBUI.Borders.emptyBottom(12));
             add(header);
+
+            cardBg = palette != null ? palette.cardBg() : new Color(245, 246, 248);
+            cardBorder = palette != null ? palette.cardBorder() : new Color(220, 223, 228);
+            cards.add(this);
+        }
+
+        void applyPalette(ThemePalette p) {
+            this.cardBg = p.cardBg();
+            this.cardBorder = p.cardBorder();
+            this.titleLabel.setForeground(p.accent());
+            repaint();
         }
 
         @Override
@@ -420,9 +504,9 @@ public final class PetSettingsConfigurable implements Configurable {
             Graphics2D g2 = (Graphics2D) g.create();
             try {
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(245, 246, 248));
+                g2.setColor(cardBg);
                 g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
-                g2.setColor(new Color(220, 223, 228));
+                g2.setColor(cardBorder);
                 g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
             } finally {
                 g2.dispose();

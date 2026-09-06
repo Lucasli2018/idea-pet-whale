@@ -59,6 +59,12 @@ public final class PetFrame {
     private boolean visible = true;
     /** 用户设置（应用级持久化）；构造时解析，null 仅出现在平台测试环境 */
     private final PetSettingsState settings;
+    /**
+     * 实时预览的缩放百分比（设置页拖动大小滑块时写入）；null = 未在预览，
+     * 渲染按持久化值。只影响绘制与定位计算，不落盘；Apply 后与持久化值一致，
+     * Cancel / 关闭设置页时由 {@link #clearPreviewOverride()} 清除。
+     */
+    private volatile Integer previewSizePercent;
 
     public PetFrame(@NotNull PetStateService service) {
         this.service = service;
@@ -171,18 +177,27 @@ public final class PetFrame {
 
     /**
      * 实时应用新的大小与不透明度（设置页 Apply / 实时预览时调用）。
-     * EDT 异步；桌宠未构建时先记住，等 buildFrame 再生效。
+     * 先记录预览缩放值（让绘制端立即按新尺寸画精灵），再同步窗口尺寸与透明度。
+     * EDT 异步；桌宠未构建时仅记住预览值，等 buildFrame 再生效。
      */
     public void applySettings(int sizePercent, int opacityPercent) {
+        int clamped = PetSettingsState.clampSizePercent(sizePercent);
         SwingUtilities.invokeLater(() -> {
-            if (frame == null) return;
-            Dimension size = PetPanel.preferredPetSize(sizePercent);
-            Point visual = getLocation();
-            frame.setSize(size.width, size.height);
-            // 保持宠物视觉位置不变：窗口大小改变后，窗口左上角要重新计算
-            setLocation(visual.x, visual.y);
-            applyOpacity(opacityPercent);
+            previewSizePercent = clamped;
+            if (frame != null) {
+                applySettingsInternal(clamped, opacityPercent);
+            }
         });
+    }
+
+    /** EDT 内部：按给定缩放与透明度同步窗口尺寸、位置与不透明度。 */
+    private void applySettingsInternal(int sizePercent, int opacityPercent) {
+        Dimension size = PetPanel.preferredPetSize(sizePercent);
+        Point visual = getLocation();
+        frame.setSize(size.width, size.height);
+        // 保持宠物视觉位置不变：窗口大小改变后，窗口左上角要重新计算
+        setLocation(visual.x, visual.y);
+        applyOpacity(opacityPercent);
     }
 
     /**
@@ -217,9 +232,24 @@ public final class PetFrame {
         });
     }
 
-    /** 当前缩放百分比（设置不可用时返回默认值）。 */
+    /** 当前缩放百分比：设置页预览值优先，否则用持久化值；设置不可用时返回默认值。 */
     public int currentSizePercent() {
+        Integer preview = previewSizePercent;
+        if (preview != null) return preview;
         return settings == null ? PetSettingsState.DEFAULT_SIZE_PERCENT : settings.getSizePercent();
+    }
+
+    /**
+     * 清除大小预览覆盖，恢复按持久化值渲染与窗口尺寸。
+     * 设置页 Cancel / 关闭 / Apply 之后调用，保证持久化值重新成为唯一事实来源。
+     */
+    public void clearPreviewOverride() {
+        SwingUtilities.invokeLater(() -> {
+            previewSizePercent = null;
+            if (frame != null && settings != null) {
+                applySettingsInternal(settings.getSizePercent(), settings.getOpacityPercent());
+            }
+        });
     }
 
     /** 设置窗口整体不透明度；平台不支持时静默跳过（保持完全可见）。 */
@@ -234,6 +264,7 @@ public final class PetFrame {
 
     /** 构造主桌宠窗口（在 EDT 上调用）。 */
     private void buildFrame() {
+        previewSizePercent = null; // 新建窗口一律以持久化值为准
         int sizePercent = settings == null
                 ? PetSettingsState.DEFAULT_SIZE_PERCENT : settings.getSizePercent();
         int opacityPercent = settings == null

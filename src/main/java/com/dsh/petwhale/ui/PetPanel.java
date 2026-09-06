@@ -97,11 +97,14 @@ public final class PetPanel extends JPanel {
         setOpaque(false);
         setPreferredSize(preferredPetSize(100));
 
-        // === 主题切换即时刷新 ===
-        this.themeListener = (snapshot, reason) -> {
-            if (!"theme-switch".equals(reason)) return;
-            SwingUtilities.invokeLater(this::refreshThemeResources);
-        };
+        // === 主题切换即时刷新（自愈式：任何快照都校验渲染主题与运行时主题一致，
+        //     不依赖具体 reason 字符串，避免预览切换被吞或错过广播） ===
+        this.themeListener = (snapshot, reason) -> SwingUtilities.invokeLater(() -> {
+            PetResources.Theme rendered = themeRef.get();
+            if (rendered == null || rendered.id() != service.theme()) {
+                refreshThemeResources();
+            }
+        });
         service.addListener(themeListener);
 
         // === 拖拽支持 + 点击交互 + 悬停交互 ===
