@@ -10,6 +10,7 @@ import com.intellij.openapi.util.NlsContexts;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -22,14 +23,15 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 
 /**
- * 设置页：Settings → Appearance &amp; Behavior → Pet Whale 鲸鱼娘。
+ * 设置页：Settings → <b>Tools（工具）</b> → Pet Whale 鲸鱼娘。
  *
- * <p>暴露三项核心配置：
+ * <p>暴露的配置与控制：
  * <ul>
  *   <li>大小（缩放百分比滑条，{@value PetSettingsState#MIN_SIZE_PERCENT}~{@value PetSettingsState#MAX_SIZE_PERCENT}）</li>
  *   <li>不透明度（滑条，{@value PetSettingsState#MIN_OPACITY_PERCENT}~{@value PetSettingsState#MAX_OPACITY_PERCENT}）</li>
  *   <li>默认主题（下拉框：原版 / 精致版）</li>
  *   <li>启动时收起（复选框）</li>
+ *   <li>显示/隐藏鲸鱼娘（按钮，点击立即生效，不走 Apply）</li>
  * </ul>
  *
  * <p>点击 Apply / OK 即写回 {@link PetSettingsState}，并立刻对当前桌宠窗口生效
@@ -95,6 +97,31 @@ public final class PetSettingsConfigurable implements Configurable {
         startHiddenCheck = new JCheckBox("启动 IDE 时只显示\"召唤鲸鱼娘\"按钮");
         startHiddenCheck.setSelected(state.isStartHidden());
         panel.add(startHiddenCheck);
+
+        // === 显示/隐藏控制（点按钮立即生效，不走 Apply） ===
+        JPanel controlRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
+        JLabel controlLabel = new JLabel("窗口");
+        controlLabel.setPreferredSize(new Dimension(70, controlLabel.getPreferredSize().height));
+        controlRow.add(controlLabel);
+        JButton showBtn = new JButton("显示鲸鱼娘");
+        JButton hideBtn = new JButton("隐藏鲸鱼娘");
+        showBtn.addActionListener(e -> {
+            PetFrame petFrame = PetStartupFrameHolder.current();
+            if (petFrame != null) {
+                petFrame.unhide();
+                startHiddenCheck.setSelected(false);
+            }
+        });
+        hideBtn.addActionListener(e -> {
+            PetFrame petFrame = PetStartupFrameHolder.current();
+            if (petFrame != null) {
+                petFrame.hide();
+                startHiddenCheck.setSelected(true);
+            }
+        });
+        controlRow.add(showBtn);
+        controlRow.add(hideBtn);
+        panel.add(controlRow);
 
         return panel;
     }

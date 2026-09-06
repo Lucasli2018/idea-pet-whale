@@ -1,7 +1,9 @@
 package com.dsh.petwhale.ui;
 
+import com.dsh.petwhale.resource.PetDialogue;
 import com.dsh.petwhale.resource.PetManifest;
 import com.dsh.petwhale.resource.PetResources;
+import com.dsh.petwhale.state.PetActivityPhase;
 import com.dsh.petwhale.state.PetAnimation;
 import com.dsh.petwhale.state.PetStateService;
 import com.dsh.petwhale.state.PetStateSnapshot;
@@ -56,6 +58,14 @@ public final class PetPanel extends JPanel {
     private int pressX = -1;
     /** 拖拽按下点 Y（-1 = 未按下） */
     private int pressY = -1;
+    /** 本次按下后是否发生过拖动（true 时松手不算点击） */
+    private boolean draggedSincePress = false;
+    /** 1 秒内的点击时间戳（判断"连点摸头"） */
+    private final java.util.ArrayDeque<Long> clickTimes = new java.util.ArrayDeque<>();
+    /** 连点判定窗口（毫秒） */
+    static final int RAPID_CLICK_WINDOW_MS = 1000;
+    /** 触发"撒娇"的连点次数阈值 */
+    static final int RAPID_CLICK_THRESHOLD = 4;
 
     public PetPanel(@NotNull PetStateService service, @NotNull PetFrame frame) {
         this.service = service;
@@ -63,7 +73,7 @@ public final class PetPanel extends JPanel {
         setOpaque(false);
         setSize(PetManifest.CELL_WIDTH, PetManifest.CELL_HEIGHT);
 
-        // === 拖拽支持 ===
+        // === 拖拽支持 + 点击交互 ===
         // 按下记录偏移，拖动时把整个 Frame 跟着鼠标移动
         MouseAdapter press = new MouseAdapter() {
             @Override
@@ -71,16 +81,19 @@ public final class PetPanel extends JPanel {
                 // 记录按下点：拖动偏移 = 鼠标当前坐标 - 按下点坐标
                 pressX = e.getX();
                 pressY = e.getY();
+                draggedSincePress = false;
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
                 if (e.isPopupTrigger()) {
                     frame.showHoverPanel(e.getX(), e.getY());
-                } else {
-                    // 松手 = 拖拽（或点击）结束，把最新位置持久化
-                    frame.savePosition();
+                } else if (!draggedSincePress) {
+                    // 按下→松手之间没有明显拖动 = 点击交互
+                    handleClick();
                 }
+                // 松手 = 拖拽（或点击）结束，把最新位置持久化
+                frame.savePosition();
                 pressX = -1;
                 pressY = -1;
             }
@@ -96,6 +109,7 @@ public final class PetPanel extends JPanel {
                 frame.setLocation(
                         p.x + e.getX() - pressX,
                         p.y + e.getY() - pressY);
+                draggedSincePress = true;
             }
         };
         addMouseListener(press);
@@ -180,6 +194,32 @@ public final class PetPanel extends JPanel {
         long[] out = new long[arr.length];
         for (int i = 0; i < arr.length; i++) out[i] = arr[i];
         return out;
+    }
+
+    /**
+     * 点击交互（EDT 上调用）：
+     * <ul>
+     *   <li>单击 → {@code DONE}（跳跃庆祝动画）+ 随机台词气泡</li>
+     *   <li>{@value #RAPID_CLICK_WINDOW_MS}ms 内连点 ≥ {@value #RAPID_CLICK_THRESHOLD} 次
+     *       → {@code FAILED}（撒娇沮丧动画）+ 撒娇台词，连点计数清零</li>
+     * </ul>
+     * 台词库缺失时只切动画不冒气泡，交互永不抛异常。
+     */
+    private void handleClick() {
+        long now = System.currentTimeMillis();
+        while (!clickTimes.isEmpty() && now - clickTimes.peekFirst() > RAPID_CLICK_WINDOW_MS) {
+            clickTimes.pollFirst();
+        }
+        clickTimes.addLast(now);
+
+        if (clickTimes.size() >= RAPID_CLICK_THRESHOLD) {
+            clickTimes.clear();
+            service.setPhase(PetActivityPhase.FAILED, null, PetDialogue.random("rapid"));
+            frame.showBubble(PetDialogue.random("rapid"));
+            return;
+        }
+        service.setPhase(PetActivityPhase.DONE, null, PetDialogue.random("click"));
+        frame.showBubble(PetDialogue.random("click"));
     }
 
     /**

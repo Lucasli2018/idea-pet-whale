@@ -6,7 +6,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.dsh</groupId>
     <artifactId>idea-pet-whale</artifactId>
-    <version>0.0.2</version>
+    <version>0.0.3</version>
     <packaging>jar</packaging>
 
     <name>Idea Pet Whale</name>
@@ -27,6 +27,8 @@
 
         <annotations.version>26.0.2</annotations.version>
         <junit.version>5.10.2</junit.version>
+        <!-- 与 2023.1 平台捆绑的 gson 版本保持一致（IDE lib/ 下即为 2.10.1） -->
+        <gson.version>2.10.1</gson.version>
 
         <!-- 插件分发包内的根目录名（IDEA 要求 zip 结构为 <根>/lib/*.jar），ASCII 避免跨平台编码 -->
         <plugin.dist.dirName>idea-pet-whale</plugin.dist.dirName>
@@ -166,6 +168,15 @@
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>
             <version>${annotations.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Gson：scope=provided —— IDEA 平台自带 gson jar（运行时由 IDE 类加载器提供），
+             编译期只需它出现在 classpath 上，不打进插件 zip（保持 1~2MB 体积红线） -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>${gson.version}</version>
             <scope>provided</scope>
         </dependency>
 
