@@ -6,12 +6,12 @@
 
 <table>
   <tr>
-    <td align="center"><img src="https://gitee.com/li-luoqiang/idea-pet-whale/raw/main/src/main/resources/images/whale/previews/idle.gif" alt="idle" /><br /><b>idle（空闲）</b></td>
-    <td align="center"><img src="https://gitee.com/li-luoqiang/idea-pet-whale/raw/main/src/main/resources/images/whale/previews/running.gif" alt="running" /><br /><b>running（跑动）</b></td>
-    <td align="center"><img src="https://gitee.com/li-luoqiang/idea-pet-whale/raw/main/src/main/resources/images/whale/previews/waving.gif" alt="waving" /><br /><b>waving（挥手）</b></td>
-    <td align="center"><img src="https://gitee.com/li-luoqiang/idea-pet-whale/raw/main/src/main/resources/images/whale/previews/jumping.gif" alt="jumping" /><br /><b>jumping（跳跃）</b></td>
-    <td align="center"><img src="https://gitee.com/li-luoqiang/idea-pet-whale/raw/main/src/main/resources/images/whale/previews/failed.gif" alt="failed" /><br /><b>failed（失败）</b></td>
-    <td align="center"><img src="https://gitee.com/li-luoqiang/idea-pet-whale/raw/main/src/main/resources/images/whale/previews/review.gif" alt="review" /><br /><b>review（审视）</b></td>
+    <td align="center"><img src="src/main/resources/images/whale/previews/idle.gif" alt="idle" /><br /><b>idle（空闲）</b></td>
+    <td align="center"><img src="src/main/resources/images/whale/previews/running.gif" alt="running" /><br /><b>running（跑动）</b></td>
+    <td align="center"><img src="src/main/resources/images/whale/previews/waving.gif" alt="waving" /><br /><b>waving（挥手）</b></td>
+    <td align="center"><img src="src/main/resources/images/whale/previews/jumping.gif" alt="jumping" /><br /><b>jumping（跳跃）</b></td>
+    <td align="center"><img src="src/main/resources/images/whale/previews/failed.gif" alt="failed" /><br /><b>failed（失败）</b></td>
+    <td align="center"><img src="src/main/resources/images/whale/previews/review.gif" alt="review" /><br /><b>review（审视）</b></td>
   </tr>
 </table>
 
