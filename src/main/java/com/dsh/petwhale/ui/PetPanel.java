@@ -5,6 +5,7 @@ import com.dsh.petwhale.resource.PetManifest;
 import com.dsh.petwhale.resource.PetResources;
 import com.dsh.petwhale.state.PetActivityPhase;
 import com.dsh.petwhale.state.PetAnimation;
+import com.dsh.petwhale.state.PetSettingsState;
 import com.dsh.petwhale.state.PetStateService;
 import com.dsh.petwhale.state.PetStateSnapshot;
 import org.jetbrains.annotations.NotNull;
@@ -62,16 +63,31 @@ public final class PetPanel extends JPanel {
     private boolean draggedSincePress = false;
     /** 1 秒内的点击时间戳（判断"连点摸头"） */
     private final java.util.ArrayDeque<Long> clickTimes = new java.util.ArrayDeque<>();
+    /** 主题切换监听（shutdown 时注销，防止插件重载后泄漏） */
+    private final PetStateService.Listener themeListener;
     /** 连点判定窗口（毫秒） */
     static final int RAPID_CLICK_WINDOW_MS = 1000;
     /** 触发"撒娇"的连点次数阈值 */
     static final int RAPID_CLICK_THRESHOLD = 4;
+    /** 事件台词对点击的抑制窗口（毫秒）：点击自己冒台词，事件通道让路 */
+    static final int EVENT_LINE_SUPPRESS_MS = 1500;
+    /** 最近一次点击时间戳（事件台词去重用） */
+    private long lastClickAt = 0;
 
     public PetPanel(@NotNull PetStateService service, @NotNull PetFrame frame) {
         this.service = service;
         this.frame = frame;
         setOpaque(false);
         setSize(PetManifest.CELL_WIDTH, PetManifest.CELL_HEIGHT);
+
+        // === 主题切换即时刷新 ===
+        // 之前只在动画切换时顺带刷新主题资源，长时间停在 idle 时切主题"看起来没生效"。
+        // 现在订阅 theme-switch 广播：立刻换精灵图 + 时长表，重置帧序并重绘。
+        this.themeListener = (snapshot, reason) -> {
+            if (!"theme-switch".equals(reason)) return;
+            SwingUtilities.invokeLater(this::refreshThemeResources);
+        };
+        service.addListener(themeListener);
 
         // === 拖拽支持 + 点击交互 ===
         // 按下记录偏移，拖动时把整个 Frame 跟着鼠标移动
@@ -87,7 +103,8 @@ public final class PetPanel extends JPanel {
             @Override
             public void mouseReleased(MouseEvent e) {
                 if (e.isPopupTrigger()) {
-                    frame.showHoverPanel(e.getX(), e.getY());
+                    // 右键菜单已移除：只保存位置，不触发点击交互
+                    frame.savePosition();
                 } else if (!draggedSincePress) {
                     // 按下→松手之间没有明显拖动 = 点击交互
                     handleClick();
@@ -122,14 +139,16 @@ public final class PetPanel extends JPanel {
             PetStateSnapshot snapshot = service.render();
             PetAnimation desired = snapshot.animation();
 
-            // 动画变了：重置帧索引 + 加载新时长表 + 同步主题资源
+            // 动画变了：重置帧索引 + 加载新时长表 + 同步主题资源 + 事件台词
             if (desired != currentAnimation.get()) {
+                PetAnimation previous = currentAnimation.get();
                 currentAnimation.set(desired);
                 frameIndex = 0;
                 frameStartedAt = now;
                 themeRef.set(service.currentTheme());
                 int row = PetResources.rowOf(desired);
                 currentDurations.set(safeDurations(service.currentTheme(), desired, row));
+                showEventLineIfNeeded(previous, desired, now);
             }
 
             // 推进帧索引：累计时长够了就前进
@@ -155,9 +174,65 @@ public final class PetPanel extends JPanel {
         });
         advance.start();
 
+        // === 久坐关怀定时器 ===
+        // 每 60 秒检查一次连续活跃时长，满阈值冒关怀台词气泡（可在设置关闭）
+        Timer careTimer = new Timer(60_000, e -> {
+            boolean enabled = careEnabled();
+            if (service.care().shouldRemind(System.currentTimeMillis(), enabled)) {
+                frame.showBubble(PetDialogue.random("care"));
+            }
+        });
+        careTimer.start();
+
         // 初始化：把当前主题/时长表装好
         themeRef.set(service.currentTheme());
         currentDurations.set(initialDurations());
+    }
+
+    /** 读"久坐关怀"开关；设置服务不可用时默认开启。 */
+    private static boolean careEnabled() {
+        try {
+            if (com.intellij.openapi.application.ApplicationManager.getApplication() == null) {
+                return true;
+            }
+            PetSettingsState settings = com.intellij.openapi.application.ApplicationManager
+                    .getApplication().getService(PetSettingsState.class);
+            return settings == null || settings.isCareEnabled();
+        } catch (Throwable t) {
+            return true;
+        }
+    }
+
+    /**
+     * 动画切换时的事件台词：切换到 JUMPING → done 组、FAILED → failed 组。
+     * 点击触发的切换（{@value #EVENT_LINE_SUPPRESS_MS}ms 内）由 handleClick 自己冒台词，
+     * 这里跳过，避免同一动作冒两个气泡。
+     */
+    private void showEventLineIfNeeded(PetAnimation previous, PetAnimation desired, long now) {
+        if (now - lastClickAt <= EVENT_LINE_SUPPRESS_MS) return;
+        if (desired == PetAnimation.JUMPING && previous != PetAnimation.JUMPING) {
+            frame.showBubble(PetDialogue.random("done"));
+        } else if (desired == PetAnimation.FAILED && previous != PetAnimation.FAILED) {
+            frame.showBubble(PetDialogue.random("failed"));
+        }
+    }
+
+    /**
+     * 主题切换后的资源刷新：换精灵图帧序列 + 换时长表 + 重置帧序 + 立即重绘。
+     * EDT 上调用（themeListener 已切）。
+     */
+    private void refreshThemeResources() {
+        PetAnimation animation = currentAnimation.get();
+        themeRef.set(service.currentTheme());
+        currentDurations.set(safeDurations(service.currentTheme(), animation, PetResources.rowOf(animation)));
+        frameIndex = 0;
+        frameStartedAt = System.currentTimeMillis();
+        repaint();
+    }
+
+    /** 注销监听（PetFrame.dispose 时调用，防止插件重载后泄漏）。 */
+    public void shutdown() {
+        service.removeListener(themeListener);
     }
 
     /** 构造时的初始时长表（用当前动画 = IDLE 算）。 */
@@ -207,6 +282,7 @@ public final class PetPanel extends JPanel {
      */
     private void handleClick() {
         long now = System.currentTimeMillis();
+        lastClickAt = now;
         while (!clickTimes.isEmpty() && now - clickTimes.peekFirst() > RAPID_CLICK_WINDOW_MS) {
             clickTimes.pollFirst();
         }

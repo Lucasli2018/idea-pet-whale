@@ -53,6 +53,8 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
     private int y = -1;
     @NotNull private String themeName = PetTheme.WHALE.name();
     private boolean startHidden = false;
+    /** 久坐关怀提醒（连续编码 60 分钟提醒喝水/起身），默认开启 */
+    private boolean careEnabled = true;
 
     /** 缩放比例（百分比，已 clamp 到 [{@link #MIN_SIZE_PERCENT}, {@link #MAX_SIZE_PERCENT}]）。 */
     public int getSizePercent() { return sizePercent; }
@@ -89,6 +91,11 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
     public boolean isStartHidden() { return startHidden; }
 
     public void setStartHidden(boolean value) { this.startHidden = value; }
+
+    /** 久坐关怀提醒（连续编码 60 分钟提醒喝水/起身），默认开启。 */
+    public boolean isCareEnabled() { return careEnabled; }
+
+    public void setCareEnabled(boolean value) { this.careEnabled = value; }
 
     /** 把持久化的主题名解析回枚举；未知值安全回退到 {@link PetTheme#WHALE}。 */
     @NotNull public PetTheme theme() {
@@ -156,5 +163,6 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
         this.y = state.y;
         setThemeName(state.themeName);
         this.startHidden = state.startHidden;
+        this.careEnabled = state.careEnabled;
     }
 }

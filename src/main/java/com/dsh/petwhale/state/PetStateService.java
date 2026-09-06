@@ -40,6 +40,11 @@ public final class PetStateService implements Disposable {
     private final List<Listener> listeners = new CopyOnWriteArrayList<>();
     /** 当前主题，使用 {@code volatile} 保证多线程可见性 */
     private volatile PetTheme theme = PetTheme.WHALE;
+    /** 久坐关怀顾问（打字活动计时 → 60 分钟提醒休息） */
+    private final PetCareAdvisor careAdvisor = new PetCareAdvisor();
+
+    /** 久坐关怀顾问（编辑器打字活动喂数据，关怀定时器周期检查）。 */
+    @NotNull public PetCareAdvisor care() { return careAdvisor; }
 
     /**
      * 取当前快照（不触发广播）。供不需要响应、只想读最新状态的场景使用。

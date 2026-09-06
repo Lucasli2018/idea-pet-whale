@@ -16,8 +16,6 @@ import java.awt.GraphicsEnvironment;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 
 /**
  * 全局透明桌宠窗口。
@@ -30,8 +28,8 @@ import java.awt.event.MouseEvent;
  *       永远置顶，桌面背景透出来</li>
  *   <li>启动时从 {@link PetSettingsState} 恢复大小 / 不透明度 / 上次位置 / 主题；
  *       没有保存过位置则自动定位右下角（用 {@code getMaximumWindowBounds} 排除任务栏）</li>
- *   <li>右键唤起 {@link PetHoverPanel}（主题切换 + 隐藏）；单击/连点触发交互
- *       （由 {@link PetPanel} 处理）；台词气泡由 {@link PetBubble} 承载</li>
+ *   <li>不弹任何右键面板（原悬浮面板已按需求移除）；隐藏/显示走设置页按钮；
+ *       单击/连点触发交互（由 {@link PetPanel} 处理）；台词气泡由 {@link PetBubble} 承载</li>
  *   <li>鼠标拖动由 {@link PetPanel} 的 MouseAdapter 处理，本类只暴露位置读写；
  *       拖拽结束 / 隐藏 / 销毁时把当前位置写回设置持久化</li>
  *   <li>"隐藏"动作收起桌宠 + 显示一个小的"召唤鲸鱼娘"召唤按钮；隐藏状态跨重启记忆；
@@ -47,8 +45,8 @@ public final class PetFrame {
     private final PetStateService service;
     /** 主桌宠窗口（JWindow：不进任务栏、不进 Alt-Tab） */
     private JWindow frame;
-    /** 悬停面板（懒加载） */
-    private JWindow hover;
+    /** 桌宠绘图面板（dispose 时注销主题监听用） */
+    private PetPanel panel;
     /** 台词气泡（懒加载，单实例复用） */
     private PetBubble bubble;
     /** "召唤鲸鱼娘"按钮（懒加载，仅在 hide 后存在） */
@@ -86,7 +84,7 @@ public final class PetFrame {
     public void dispose() {
         SwingUtilities.invokeLater(() -> {
             savePosition();
-            if (hover != null) hover.dispose();
+            if (panel != null) panel.shutdown();
             if (bubble != null) bubble.dispose();
             if (frame != null) frame.dispose();
             if (summon != null) summon.dispose();
@@ -95,14 +93,13 @@ public final class PetFrame {
     }
 
     /**
-     * 隐藏桌宠（不销毁）：桌宠窗口和悬停面板消失，右下角留下"召唤鲸鱼娘"按钮。
+     * 隐藏桌宠（不销毁）：桌宠窗口消失，右下角留下"召唤鲸鱼娘"按钮。
      * 隐藏状态写入设置持久化，下次启动直接收起。
      */
     public void hide() {
         SwingUtilities.invokeLater(() -> {
             if (settings != null) settings.setStartHidden(true);
             if (frame != null) frame.setVisible(false);
-            if (hover != null) hover.setVisible(false);
             if (bubble != null) bubble.hideNow();
             if (summon == null) summon = buildSummon();
             summon.setVisible(true);
@@ -202,21 +199,9 @@ public final class PetFrame {
     }
 
     /**
-     * 显示悬停面板（懒加载：首次调用时构造）。
-     * 位置：桌宠窗口内部坐标 + 偏移（避免遮挡桌宠本身）。
+     * 显示悬停面板的功能已按用户要求移除（右键不再弹出任何面板）。
+     * 隐藏/显示走设置页（Settings → Tools → Pet Whale 鲸鱼娘）的按钮。
      */
-    public void showHoverPanel(int localX, int localY) {
-        if (frame == null) return;
-        if (hover == null) {
-            hover = new JWindow(frame);
-            hover.setContentPane(new PetHoverPanel(this, service));
-        }
-        Point origin = frame.getLocation();
-        // 屏幕坐标 = 窗口左上角 + 局部鼠标坐标 - 居中偏移
-        hover.setLocation(origin.x + localX - 30, origin.y + localY + 12);
-        hover.pack();
-        hover.setVisible(true);
-    }
 
     /** 构造主桌宠窗口（在 EDT 上调用）。 */
     private void buildFrame() {
@@ -236,15 +221,9 @@ public final class PetFrame {
         int h = PetSettingsState.scaledHeight(sizePercent);
         frame.setSize(w, h);
         frame.setLocation(savedOrDefaultLocation(w, h));
-        frame.setContentPane(new PetPanel(service, this));
+        panel = new PetPanel(service, this);
+        frame.setContentPane(panel);
         applyOpacity(opacityPercent);
-        // 监听鼠标右键唤起悬停面板
-        frame.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                if (e.isPopupTrigger()) showHoverPanel(e.getX(), e.getY());
-            }
-        });
         frame.setVisible(!startHidden());
         visible = true;
         if (startHidden()) {

@@ -1,7 +1,7 @@
 <idea-plugin url="https://github.com/zhu1090093659/idea-pet-whale">
     <id>com.dsh.petwhale</id>
     <name>Pet Whale</name>
-    <version>0.0.3</version>
+    <version>0.0.4</version>
     <vendor email="1906859953@qq.com" url="https://github.com/Lucasli2018">lucasli</vendor>
 
     <idea-version since-build="231"/>
@@ -15,6 +15,14 @@
     ]]></description>
 
     <change-notes><![CDATA[
+        <h4>0.0.4（P1 收尾 + 久坐关怀 + 交互瘦身）</h4>
+        <ul>
+            <li><b>移除右键悬浮面板</b>：右键不再弹出"鲸鱼娘"面板（含其设置入口）；隐藏/显示统一走设置页（Settings → Tools → Pet Whale 鲸鱼娘）的按钮。</li>
+            <li><b>修复切换主题不生效</b>：面板现在订阅 theme-switch 广播即时刷新精灵图与帧时长，不再依赖动画切换才生效。</li>
+            <li><b>久坐关怀</b>：连续编码 60 分钟冒气泡提醒喝水/起身（全局打字监听计时；离开 5 分钟以上自动重新累计；设置页可关闭）。</li>
+            <li>事件台词：动画切入 JUMPING/FAILED 时冒 done/failed 台词气泡（点击触发的 1.5 秒内让路，避免双气泡）。</li>
+            <li>台词库扩展：feed / done / failed / care 四组（feed 组为后续投喂入口预留）。</li>
+        </ul>
         <h4>0.0.3（P1 交互第一期 + 设置优化）</h4>
         <ul>
             <li>设置页迁移：Settings → <b>Tools（工具）</b> → Pet Whale 鲸鱼娘。</li>

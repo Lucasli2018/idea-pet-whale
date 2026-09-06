@@ -50,6 +50,7 @@ public final class PetSettingsConfigurable implements Configurable {
     private JLabel opacityValue;
     private ComboBox<PetTheme> themeCombo;
     private JCheckBox startHiddenCheck;
+    private JCheckBox careCheck;
 
     @Override
     public @NlsContexts.ConfigurableName String getDisplayName() {
@@ -98,6 +99,11 @@ public final class PetSettingsConfigurable implements Configurable {
         startHiddenCheck.setSelected(state.isStartHidden());
         panel.add(startHiddenCheck);
 
+        // === 久坐关怀 ===
+        careCheck = new JCheckBox("久坐关怀：连续编码 60 分钟提醒喝水/起身");
+        careCheck.setSelected(state.isCareEnabled());
+        panel.add(careCheck);
+
         // === 显示/隐藏控制（点按钮立即生效，不走 Apply） ===
         JPanel controlRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         JLabel controlLabel = new JLabel("窗口");
@@ -144,7 +150,8 @@ public final class PetSettingsConfigurable implements Configurable {
         return sizeSlider.getValue() != state.getSizePercent()
                 || opacitySlider.getValue() != state.getOpacityPercent()
                 || themeCombo.getSelectedItem() != state.theme()
-                || startHiddenCheck.isSelected() != state.isStartHidden();
+                || startHiddenCheck.isSelected() != state.isStartHidden()
+                || careCheck.isSelected() != state.isCareEnabled();
     }
 
     @Override
@@ -157,6 +164,7 @@ public final class PetSettingsConfigurable implements Configurable {
             state.setThemeName(theme.name());
         }
         state.setStartHidden(startHiddenCheck.isSelected());
+        state.setCareEnabled(careCheck.isSelected());
 
         // 实时生效：主题走状态服务广播；窗口几何走 PetFrame（可能尚未创建）
         PetStateService service = ApplicationManager.getApplication().getService(PetStateService.class);
@@ -174,6 +182,7 @@ public final class PetSettingsConfigurable implements Configurable {
         opacitySlider.setValue(state.getOpacityPercent());
         themeCombo.setSelectedItem(state.theme());
         startHiddenCheck.setSelected(state.isStartHidden());
+        careCheck.setSelected(state.isCareEnabled());
     }
 
     @Override
@@ -183,6 +192,7 @@ public final class PetSettingsConfigurable implements Configurable {
         opacitySlider = null;
         themeCombo = null;
         startHiddenCheck = null;
+        careCheck = null;
     }
 
     /**

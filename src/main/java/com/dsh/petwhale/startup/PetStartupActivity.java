@@ -31,6 +31,8 @@ public final class PetStartupActivity implements StartupActivity, StartupActivit
     private static final Logger LOG = Logger.getInstance(PetStartupActivity.class);
     /** 全局桌宠窗口（volatile 保证多线程可见性 + 防止指令重排） */
     private static volatile PetFrame petFrame;
+    /** 全局打字监听器是否已安装（应用级装一次即可） */
+    private static volatile boolean typingListenerInstalled;
 
     /**
      * 每个项目 ready 时被调用一次。
@@ -51,12 +53,43 @@ public final class PetStartupActivity implements StartupActivity, StartupActivit
             }
         }
 
+        // 打字活动 → 久坐关怀计时（应用级只装一次）
+        installTypingListener();
+
         // 每个项目都装一份 VFS 监听（不同项目可能有不同 git 目录）
         try {
             PetVcsListener vcs = new PetVcsListener(project, service);
             vcs.install();
         } catch (Throwable t) {
             LOG.warn("PetVcsListener install failed", t);
+        }
+    }
+
+    /**
+     * 安装全局文档变更监听：任何编辑器打字都算"活跃"，喂给 {@link com.dsh.petwhale.state.PetCareAdvisor}
+     * 做久坐关怀计时。装失败只降级（关怀功能失效），绝不影响桌宠本体。
+     */
+    private static void installTypingListener() {
+        if (typingListenerInstalled) return;
+        synchronized (PetStartupActivity.class) {
+            if (typingListenerInstalled) return;
+            try {
+                com.intellij.openapi.editor.EditorFactory.getInstance()
+                        .getEventMulticaster()
+                        .addDocumentListener(new com.intellij.openapi.editor.event.DocumentListener() {
+                            @Override
+                            public void documentChanged(@NotNull com.intellij.openapi.editor.event.DocumentEvent event) {
+                                PetStateService svc = com.intellij.openapi.application.ApplicationManager
+                                        .getApplication().getService(PetStateService.class);
+                                if (svc != null) {
+                                    svc.care().onActivity(System.currentTimeMillis());
+                                }
+                            }
+                        });
+                typingListenerInstalled = true;
+            } catch (Throwable t) {
+                LOG.warn("typing listener (care advisor) install failed", t);
+            }
         }
     }
 
