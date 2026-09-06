@@ -17,6 +17,7 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JWindow;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import java.awt.Color;
@@ -32,6 +33,7 @@ import java.awt.GraphicsEnvironment;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
@@ -100,6 +102,18 @@ public final class PetHoverPanel {
     private static final Color POINTS_FROM = new Color(255, 196, 120);
     private static final Color POINTS_TO = new Color(255, 140, 90);
 
+    /** 帮助弹窗：悬停/点击"?"后延迟显示，移出后延迟隐藏 */
+    private static final int HELP_SHOW_DELAY_MS = 300;
+    private static final int HELP_HIDE_DELAY_MS = 250;
+    /** 帮助弹窗内容：亲密度 / 称号 / 小鱼干 / 点数的玩法说明 */
+    private static final String HELP_HTML = "<html><body style='width:230px'>"
+            + "<b><font color='#7EC4FF'>亲密度</font></b>：每次喂食 +10，Lv 每 200 点升 1 级<br>"
+            + "<b><font color='#FF9BC0'>称号</font></b>：素昧平生 &lt;100 / 一见如故 100+ / "
+            + "心意相通 300+ / 心有灵犀 600+ / 灵魂伴侣 1000+<br>"
+            + "<b><font color='#56A4FF'>小鱼干</font></b>：喂食消耗，初始 20 条，进度按 99 条满格<br>"
+            + "<b><font color='#FFA050'>点数</font></b>：每次喂食 +5 累计，进度按 500 满格"
+            + "</body></html>";
+
     private final PetFrame frame;
     private final PetStateService service;
     /** 数值胶囊窗口（宠物头顶上方，头部区域触发） */
@@ -118,6 +132,12 @@ public final class PetHoverPanel {
 
     private final Timer showTimer;
     private final Timer hideTimer;
+    /** 帮助说明弹窗（"?"按钮触发，悬停/点击显示） */
+    private final JWindow helpWindow;
+    private final Timer helpShowTimer;
+    private final Timer helpHideTimer;
+    /** 鼠标当前是否在帮助弹窗内（移入弹窗时保持显示） */
+    private boolean mouseInHelp;
 
     /** 当前面板是否被显式锁定（鼠标在宠物触发区或悬浮层内） */
     private boolean locked;
@@ -164,6 +184,12 @@ public final class PetHoverPanel {
         pc.anchor = GridBagConstraints.EAST;
         pc.insets = new Insets(0, 0, 0, 0);
         profileRow.add(titleLabel, pc);
+        pc.gridx = 3;
+        pc.weightx = 0;
+        pc.insets = new Insets(0, 4, 0, 0);
+        JComponent helpButton = new HelpButton();
+        profileRow.add(helpButton, pc);
+        profileRow.setAlignmentX(Component.LEFT_ALIGNMENT);
         statsPanel.add(profileRow);
         statsPanel.add(Box.createVerticalStrut(5));
 
@@ -198,6 +224,69 @@ public final class PetHoverPanel {
         cardWindow.setAlwaysOnTop(true);
         cardWindow.setBackground(new Color(0, 0, 0, 0));
         cardWindow.setContentPane(cardPanel);
+
+        // === 帮助说明弹窗（"?"按钮触发，悬停/点击显示） ===
+        JPanel helpPanel = new PillPanel(new Insets(8, 11, 9, 11));
+        JLabel helpLabel = new JLabel(HELP_HTML);
+        helpLabel.setForeground(TEXT_MAIN);
+        helpLabel.setFont(helpLabel.getFont().deriveFont(Font.PLAIN, 11f));
+        helpPanel.add(helpLabel);
+        this.helpWindow = new JWindow();
+        helpWindow.setAlwaysOnTop(true);
+        helpWindow.setBackground(new Color(0, 0, 0, 0));
+        helpWindow.setContentPane(helpPanel);
+
+        this.helpShowTimer = new Timer(HELP_SHOW_DELAY_MS, e -> SwingUtilities.invokeLater(this::showHelp));
+        helpShowTimer.setRepeats(false);
+        this.helpHideTimer = new Timer(HELP_HIDE_DELAY_MS, e -> SwingUtilities.invokeLater(() -> {
+            if (!mouseInHelp) {
+                hideHelp();
+            }
+        }));
+        helpHideTimer.setRepeats(false);
+
+        // "?"触发器：悬停延迟弹出、移出延迟收起、点击立即开/关
+        helpButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                helpHideTimer.stop();
+                helpShowTimer.start();
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                helpShowTimer.stop();
+                helpHideTimer.restart();
+            }
+
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                helpShowTimer.stop();
+                helpHideTimer.stop();
+                if (helpWindow.isVisible()) {
+                    hideHelp();
+                } else {
+                    showHelp();
+                }
+            }
+        });
+
+        // 鼠标移入帮助弹窗本身时保持显示（与悬浮层同款守卫思路）
+        MouseAdapter helpGuard = new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                mouseInHelp = true;
+                helpHideTimer.stop();
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                mouseInHelp = false;
+                helpHideTimer.restart();
+            }
+        };
+        helpPanel.addMouseListener(helpGuard);
+        helpLabel.addMouseListener(helpGuard);
 
         // === 悬停守卫：面板与其所有子组件（按钮/标签/进度条）都挂同一监听 ===
         // Swing 中鼠标从面板移到子组件上也会触发面板的 mouseExited，
@@ -316,9 +405,12 @@ public final class PetHoverPanel {
     public void dispose() {
         cancelShow();
         cancelHide();
+        helpShowTimer.stop();
+        helpHideTimer.stop();
         SwingUtilities.invokeLater(() -> {
             statsWindow.dispose();
             cardWindow.dispose();
+            helpWindow.dispose();
         });
     }
 
@@ -353,6 +445,34 @@ public final class PetHoverPanel {
         cancelHide();
         statsWindow.setVisible(false);
         cardWindow.setVisible(false);
+        hideHelp();
+    }
+
+    /**
+     * 显示帮助弹窗（仅胶囊可见时）：贴在胶囊下方、与胶囊右对齐，越界夹回屏幕。
+     */
+    private void showHelp() {
+        if (!statsWindow.isVisible()) {
+            return;
+        }
+        helpWindow.pack();
+        Rectangle screen = GraphicsEnvironment.getLocalGraphicsEnvironment()
+                .getMaximumWindowBounds();
+        Dimension hs = helpWindow.getSize();
+        Dimension ss = statsWindow.getSize();
+        Point base = statsWindow.getLocation();
+        int x = base.x + ss.width - hs.width;
+        int y = base.y + ss.height + 4;
+        x = Math.max(screen.x, Math.min(x, screen.x + screen.width - hs.width));
+        y = Math.max(screen.y, Math.min(y, screen.y + screen.height - hs.height));
+        helpWindow.setLocation(x, y);
+        helpWindow.setVisible(true);
+    }
+
+    /** 立即收起帮助弹窗并取消显示定时器。 */
+    private void hideHelp() {
+        helpShowTimer.stop();
+        helpWindow.setVisible(false);
     }
 
     private void reposition() {
@@ -397,18 +517,24 @@ public final class PetHoverPanel {
         pointsValueLabel.setText(String.valueOf(settings.getPoints()));
     }
 
-    /** 彩色数值标签（粗体 11）。 */
+    /**
+     * 彩色数值标签（粗体 11）。固定宽度 + 右对齐：三条数值宽度不同（如 ×0 与 200），
+     * 不锁宽会让行宽参差、进度条跟着错位。
+     */
     private static JLabel valueLabel(Color color) {
         JLabel label = new JLabel();
         label.setForeground(color);
         label.setFont(label.getFont().deriveFont(Font.BOLD, 11f));
+        label.setHorizontalAlignment(SwingConstants.RIGHT);
+        label.setPreferredSize(new Dimension(36, label.getPreferredSize().height));
         return label;
     }
 
-    /** 一行进度条：灰色标签 + 彩色条 + 彩色数值。 */
+    /** 一行进度条：灰色标签 + 彩色条 + 彩色数值。行组件 LEFT_ALIGNMENT 对齐（BoxLayout 默认居中会让行左右错位）。 */
     private static JComponent statRow(String caption, JComponent bar, JComponent value) {
         JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
         row.setOpaque(false);
+        row.setAlignmentX(Component.LEFT_ALIGNMENT);
         JLabel cap = new JLabel(caption);
         cap.setForeground(TEXT_SUB);
         cap.setFont(cap.getFont().deriveFont(Font.PLAIN, 10f));
@@ -541,6 +667,53 @@ public final class PetHoverPanel {
                 g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, CORNER, CORNER);
                 g2.setColor(CARD_BORDER);
                 g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, CORNER, CORNER);
+            } finally {
+                g2.dispose();
+            }
+        }
+    }
+
+    /**
+     * 圆形"？"帮助按钮：深蓝底白字，悬停提亮。悬停/点击弹出数值说明（见 {@code HELP_HTML}）。
+     */
+    private static final class HelpButton extends JComponent {
+        private boolean hovering;
+
+        HelpButton() {
+            setOpaque(false);
+            setPreferredSize(new Dimension(15, 15));
+            addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    hovering = true;
+                    repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    hovering = false;
+                    repaint();
+                }
+            });
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            try {
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setComposite(java.awt.AlphaComposite.Clear);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.setComposite(java.awt.AlphaComposite.SrcOver);
+                g2.setColor(hovering ? BTN_HOVER : CARD_BORDER);
+                g2.fillOval(0, 0, getWidth() - 1, getHeight() - 1);
+                g2.setColor(BTN_TEXT);
+                g2.setFont(g2.getFont().deriveFont(Font.BOLD, 9.5f));
+                FontMetrics fm = g2.getFontMetrics();
+                String q = "?";
+                int tx = (getWidth() - fm.stringWidth(q)) / 2;
+                int ty = (getHeight() + fm.getAscent() - fm.getDescent()) / 2;
+                g2.drawString(q, tx, ty);
             } finally {
                 g2.dispose();
             }

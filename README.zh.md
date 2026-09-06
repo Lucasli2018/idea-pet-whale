@@ -29,12 +29,26 @@ DSH Pet Whale 是一个 JetBrains IDEA 平台的桌面宠物插件（Plugin）�
 | 功能 | 说明 |
 |---|---|
 | 9 状态动画 | idle / running-right / running-left / waving / jumping / failed / waiting / running / review，每种状态都有专属的节奏和帧时长 |
-| 2 套内置主题 | **原版**鲸鱼娘（whale-girl）和**精致版**鲸鱼娘（whale-girl-refined），悬停面板一键切换 |
+| 2 套内置主题 | **原版**鲸鱼娘和**精致版**鲸鱼娘，设置页一键切换 + 实时预览 |
 | 编辑器联动 | 编辑器获得焦点时切换到 `thinking/running` 动画；关闭后定时器自动回到 IDLE |
 | VCS 联动 | `.git/` 目录下任何创建/删除/属性变更触发短暂的 `review` 动画，提示正在提交/拉取 |
-| 拖拽定位 | 按住桌宠可以拖到屏幕任何位置，松开即定位 |
-| 隐藏 / 召唤 | 右键或悬停面板的"隐藏"按钮收起桌宠，桌面右下角留下"召唤鲸鱼娘"按钮 |
-| 始终置顶 | 一个 1 像素边框的透明 `JFrame`，永远浮在所有编辑器和工具窗口之上 |
+| 分区悬浮交互层 | 鼠标停在**头部**→头顶数值胶囊（名字 / Lv / 称号 + 亲密度、小鱼干、点数三条彩色渐变进度条，左对齐）；停在**脚部**→紧凑按钮卡片（喂食 / 改名 / 设置 / 隐藏，按钮紧贴文字） |
+| 台词气泡 | 渐变底 + 指向宠物的三角尾巴，淡入下滑出现、2.5s 后淡出；**实时跟随宠物移动**（拖拽时贴着走，贴屏幕边自动翻尾巴），文字居中 |
+| 数值帮助说明 | 胶囊上的"？"按钮，悬停或点击弹出亲密度 / 称号 / 小鱼干 / 点数的玩法说明 |
+| 投喂与成长 | 喂小鱼干（亲密度 +10、点数 +5）；每 200 亲密度升 1 级；称号五阶：素昧平生 → 灵魂伴侣 |
+| 久坐关怀 | 连续编码 60 分钟气泡提醒喝水/起身（可关闭）；深夜自动困倦台词 |
+| 拖拽定位 | 按住桌宠可以拖到屏幕任何位置，位置跨重启记忆 |
+| 隐藏 / 召唤 | 悬停面板的"隐藏"按钮收起桌宠，桌面右下角留下"召唤鲸鱼娘"按钮 |
+| 始终置顶 | 无边框透明 `JWindow`，浮在所有窗口之上，不进任务栏 / Alt-Tab |
+
+## 玩法数值说明
+
+| 数值 | 规则 |
+|---|---|
+| 亲密度 | 每次喂食 +10；Lv 每 200 点升 1 级（Lv.1 起算）；进度条按当前称号区间折算 |
+| 称号 | 素昧平生 <100 / 一见如故 100~299 / 心意相通 300~599 / 心有灵犀 600~999 / 灵魂伴侣 1000+ |
+| 小鱼干 | 喂食消耗，初始 20 条；进度条按 99 条满格 |
+| 点数 | 每次喂食 +5 累计；进度条按 500 满格 |
 
 ## 动画契约（Animation Contract）
 
@@ -76,12 +90,12 @@ idle     → idle
 ## 构建
 
 ```sh
-mvn -B -DskipTests=true package          # 产出 target/idea-pet-whale-0.0.1.jar + ...-plugin.zip
-mvn -B test                              # 运行 20 个单元测试
+mvn -B -DskipTests=true package          # 产出 target/idea-pet-whale-0.0.15.jar + ...-plugin.zip
+mvn -B test                              # 运行 65 个单元测试
 mvn -B clean verify                      # 完整验证流水线
 ```
 
-打包后的 zip 结构（`target/idea-pet-whale-0.0.1-plugin.zip`）：
+打包后的 zip 结构（`target/idea-pet-whale-0.0.15-plugin.zip`）：
 
 ```
 idea-pet-whale/
@@ -94,7 +108,7 @@ idea-pet-whale/
 ## 安装
 
 1. **Settings → Plugins → ⚙ → Install Plugin from Disk…**
-2. 选择 `target/idea-pet-whale-0.0.1-plugin.zip`（或你的发布产物）。
+2. 选择 `target/idea-pet-whale-0.0.15-plugin.zip`（或你的发布产物）。
 4. 重启 IDEA。鲸鱼娘会出现在屏幕右下角，开始她的空闲动画。
 
 ## 仓库结构
@@ -115,7 +129,7 @@ idea-pet-whale/
 │   ├── listener/                                # EditorFactoryListener + VirtualFileListener
 │   ├── ui/                                      # PetFrame（透明始终置顶）+ PetPanel + 悬停面板
 │   └── startup/PetStartupActivity.java          # StartupActivity 启动入口
-└── src/test/java/com/dsh/petwhale/              # 20 个单元测试
+└── src/test/java/com/dsh/petwhale/              # 65 个单元测试
 ```
 
 ## 关键设计决策

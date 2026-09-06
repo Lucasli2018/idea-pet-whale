@@ -91,12 +91,18 @@ public final class PetBubble {
         label = new JLabel();
         label.setForeground(TEXT);
         label.setFont(label.getFont().deriveFont(Font.BOLD, 12f));
+        label.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
         panel = new BubblePanel(label);
         window.setContentPane(panel);
         autoHide = new Timer(AUTO_HIDE_MS, e -> startFade(false));
         autoHide.setRepeats(false);
         fade = new Timer(FADE_STEP_MS, e -> stepFade());
         fade.setRepeats(false);
+    }
+
+    /** 是否正在显示（PetFrame 判断"要不要跟随宠物移动"用）。 */
+    public boolean isShowingNow() {
+        return window.isVisible();
     }
 
     /**
@@ -110,23 +116,34 @@ public final class PetBubble {
      */
     public void showBeside(int petLeftX, int petRightX, int petTopY, int spriteHeight, String text) {
         label.setText(clip(text));
-        // 尾巴默认朝左（气泡在宠物右侧）；布局后若实际贴在左侧则翻转一次重新打包
+        // 尾巴默认朝左（气泡在宠物右侧）；定位后若实际贴在宠物左侧则翻边重新打包
         panel.setTail(true);
         panel.invalidate();
         window.pack();
-        boolean tailLeft = place(petLeftX, petRightX, petTopY, spriteHeight);
-        if (!tailLeft) {
-            panel.setTail(false);
-            panel.invalidate();
-            window.pack();
-            place(petLeftX, petRightX, petTopY, spriteHeight);
-        }
-
         // 淡入动画起点：完全透明 + 下沉几像素，随后滑到位
         autoHide.stop();
         startFade(true);
         window.setVisible(true);
+        follow(petLeftX, petRightX, petTopY, spriteHeight);
         autoHide.restart();
+    }
+
+    /**
+     * 实时跟随宠物（必须在 EDT 上调用）：宠物被拖拽 / 缩放时重新定位气泡，
+     * 宠物贴到屏幕边导致另一侧放不下时自动翻尾巴并重排。
+     * 未显示时为 no-op。
+     */
+    public void follow(int petLeftX, int petRightX, int petTopY, int spriteHeight) {
+        if (!window.isVisible()) {
+            return;
+        }
+        boolean tailLeft = place(petLeftX, petRightX, petTopY, spriteHeight);
+        if (panel.isTailLeft() != tailLeft) {
+            panel.setTail(tailLeft);
+            panel.invalidate();
+            window.pack();
+            place(petLeftX, petRightX, petTopY, spriteHeight);
+        }
     }
 
     /**
@@ -265,8 +282,15 @@ public final class PetBubble {
         private BubblePanel(JLabel label) {
             this.label = label;
             setOpaque(false);
-            add(label);
+            // BorderLayout 让文本在气泡内水平垂直居中（默认 FlowLayout 会受组件间隙影响）
+            setLayout(new java.awt.BorderLayout());
+            add(label, java.awt.BorderLayout.CENTER);
             updateBorder();
+        }
+
+        /** 尾巴当前朝向（跟随定位时判断是否需要翻边）。 */
+        boolean isTailLeft() {
+            return tailLeft;
         }
 
         /** 设置尾巴朝向并同步内边距（尾巴一侧多留 TAIL_W 空间）。 */

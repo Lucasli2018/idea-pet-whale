@@ -158,6 +158,15 @@ public final class PetFrame {
     public void setLocation(int x, int y) {
         if (frame != null) frame.setLocation(x, y - jumpRoom());
         updateHoverLocation(x, y);
+        updateBubbleLocation(x, y);
+    }
+
+    /** 气泡显示中时实时跟随宠物（拖拽/缩放都经过 setLocation，EDT 上调用）。 */
+    private void updateBubbleLocation(int visualX, int visualY) {
+        if (bubble == null || !bubble.isShowingNow()) return;
+        int w = PetSettingsState.scaledWidth(currentSizePercent());
+        int h = PetSettingsState.scaledHeight(currentSizePercent());
+        bubble.follow(visualX, visualX + w, visualY, h);
     }
 
     private void updateHoverLocation(int visualX, int visualY) {

@@ -21,12 +21,16 @@
 | Feature | Description |
 |---|---|
 | 9-state animation | idle / running-right / running-left / waving / jumping / failed / waiting / running / review, driven by per-track durations from `pet.json` |
-| 2 built-in themes | **Original** whale-girl + **Refined** AI-assisted variant, switchable from the hover panel |
+| 2 built-in themes | **Original** whale-girl + **Refined** AI-assisted variant, switchable from the settings page with live preview |
 | Editor linkage | Each editor that gains focus flips the pet to `thinking/running`; releasing settles after the idle timer |
 | VCS linkage | Any create/delete/property change under `.git/` nudges the pet into a brief `review` animation (commit/pull hint) |
-| Drag-to-move | Hold-drag the pet anywhere on the screen; position resets next session only if you hide & summon |
-| Hide / Summon | Right-click or hover panel hides the pet; a small "召唤鲸鱼娘" button stays at the bottom-right |
-| Always-on-top | A 1-pixel-bordered transparent `JFrame` floats over every editor and tool window |
+| Interactive hover layers | Head zone → stats pill (name / Lv / title + intimacy / fish / points gradient bars); feet zone → compact action card (Feed / Rename / Settings / Hide), buttons hug their labels |
+| Speech bubble | Gradient bubble with a tail pointing at the pet, fade-in slide animation, follows the pet while being dragged, auto fades out after 2.5s |
+| Care stats & help | A "?" button on the stats pill pops up gameplay explanations (intimacy / title / fish / points rules) on hover or click |
+| Feeding & progression | Feed fish (+10 intimacy, +5 points); levels rise every 200 intimacy; titles: 素昧平生 → 灵魂伴侣 |
+| Drag-to-move | Hold-drag the pet anywhere on the screen; position persists across restarts |
+| Hide / Summon | Hover panel hides the pet; a small "召唤鲸鱼娘" button stays at the bottom-right |
+| Always-on-top | Transparent borderless `JWindow` floats over every editor and tool window, absent from taskbar / Alt-Tab |
 
 ## Compatibility
 
@@ -37,15 +41,15 @@
 ## Build
 
 ```sh
-mvn -B -DskipTests=true package          # produces target/idea-pet-whale-0.0.1.jar + ...-plugin.zip
-mvn -B test                              # runs 20 unit tests
+mvn -B -DskipTests=true package          # produces target/idea-pet-whale-0.0.15.jar + ...-plugin.zip
+mvn -B test                              # runs 65 unit tests
 mvn -B clean verify                      # full clean verify pipeline
 ```
 
 ## Install
 
 1. **Settings → Plugins → ⚙ → Install Plugin from Disk…**
-2. Pick `target/idea-pet-whale-0.0.1-plugin.zip` (or your release build).
+2. Pick `target/idea-pet-whale-0.0.15-plugin.zip` (or your release build).
 3. Restart IDEA. The whale-girl appears at the bottom-right of the screen.
 
 ## Credits
