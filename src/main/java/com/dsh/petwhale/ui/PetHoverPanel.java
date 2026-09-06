@@ -49,21 +49,24 @@ import java.awt.event.MouseEvent;
  *       按钮大小与字体适配。</li>
  * </ul>
  *
- * <p>两层都不压宠物本体；鼠标在宠物 ↔ 悬浮层之间移动保持显示，
- * <b>完全离开</b>后 200ms 内消失。宠物中部区域（25%~75%）不触发任何悬浮层。</p>
+ * <p>两层都不压宠物本体；鼠标在宠物触发区 ↔ 悬浮层之间移动保持显示，
+ * <b>完全离开</b>后约 320ms 消失（1 秒内，且给层间小间隙留穿越宽限）。</p>
  *
  * <p>所有 Swing 操作都限制在 EDT 内；调用方无需提前切线程。</p>
  */
 public final class PetHoverPanel {
 
     /** 悬浮层与宠物边缘的间隙（像素） */
-    private static final int GAP = 4;
+    private static final int GAP = 6;
     /** 胶囊/卡片圆角半径 */
     private static final int CORNER = 12;
     /** 显示延迟：鼠标进入触发区域后多少毫秒才显示（避免划过时频繁闪现） */
     private static final int SHOW_DELAY_MS = 260;
-    /** 隐藏延迟：鼠标完全离开宠物和悬浮层后多少毫秒隐藏 */
-    private static final int HIDE_DELAY_MS = 200;
+    /**
+     * 隐藏延迟：鼠标完全离开宠物和悬浮层后多少毫秒隐藏。
+     * 320ms：给"脚部区域 ↔ 卡片"之间的小间隙留出穿越宽限（仍在 1 秒内消失）。
+     */
+    private static final int HIDE_DELAY_MS = 320;
     /** 胶囊内边距 */
     private static final Insets STATS_PADDING = new Insets(8, 12, 9, 12);
     /** 卡片内边距 */
@@ -527,7 +530,7 @@ public final class PetHoverPanel {
     }
 
     /**
-     * 深蓝底白字圆角按钮（参考设计图配色），大小随文字自适应，悬停提亮。
+     * 深蓝底白字圆角按钮（参考设计图配色），大小紧贴文字，悬停提亮。
      */
     private static final class FlatButton extends JButton {
         private boolean hovering;
@@ -535,11 +538,11 @@ public final class PetHoverPanel {
         FlatButton(String text) {
             super(text);
             setFocusPainted(false);
-            setBorder(BorderFactory.createEmptyBorder(3, 10, 3, 10));
+            setBorder(BorderFactory.createEmptyBorder(2, 7, 2, 7));
             setContentAreaFilled(false);
             setOpaque(false);
             setForeground(BTN_TEXT);
-            setFont(getFont().deriveFont(Font.BOLD, 11f));
+            setFont(getFont().deriveFont(Font.BOLD, 10f));
             addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseEntered(MouseEvent e) {

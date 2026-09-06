@@ -456,8 +456,9 @@ public final class PetPanel extends JPanel {
             int y = baseY + jumpYOffset(sizePercent);
             int spriteH = PetSettingsState.scaledHeight(sizePercent);
             int spriteW = PetSettingsState.scaledWidth(sizePercent);
-            // 缩放绘制到精灵尺寸（而非填满整个窗口高度，窗口额外高度是缓冲）
-            g2.drawImage(frames[idx], 0, y, spriteW, y + spriteH, null);
+            // 缩放绘制到精灵尺寸（高度必须传 spriteH 而非 y+spriteH，
+            // 否则宠物会被纵向拉伸、脚部超出预期底边，导致下方卡片遮挡）
+            g2.drawImage(frames[idx], 0, y, spriteW, spriteH, null);
         } finally {
             g2.dispose();
         }

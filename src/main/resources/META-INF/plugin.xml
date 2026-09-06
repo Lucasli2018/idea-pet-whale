@@ -1,7 +1,7 @@
 <idea-plugin url="https://github.com/zhu1090093659/idea-pet-whale">
     <id>com.dsh.petwhale</id>
     <name>Pet Whale</name>
-    <version>0.0.11</version>
+    <version>0.0.12</version>
     <vendor email="1906859953@qq.com" url="https://github.com/Lucasli2018">lucasli</vendor>
 
     <idea-version since-build="231"/>
@@ -15,6 +15,13 @@
     ]]></description>
 
     <change-notes><![CDATA[
+        <h4>0.0.12（修复卡片遮挡宠物脚部 + 按钮贴合文字 + 层间穿越宽容）</h4>
+        <ul>
+            <li><b>修复宠物被纵向拉伸</b>：绘制时高度参数误传为「基准Y+精灵高」，宠物实际被拉长约 28px、脚部超出预期底边，导致下方卡片压住裙摆；现按精灵高度绘制，宠物比例恢复，卡片精确贴在脚底下方、不再遮挡。</li>
+            <li><b>卡片与宠物间距加大</b>：悬浮层与宠物边缘间隙 4px → 6px。</li>
+            <li><b>按钮贴合文字</b>：按钮字号 11 → 10、内边距收紧（2×7），按钮大小与文字匹配、更紧凑。</li>
+            <li><b>层间穿越宽容</b>：隐藏延迟 200ms → 320ms，鼠标在「脚部区域 ↔ 卡片」之间的小间隙移动不再闪断（仍在 1 秒内消失）。</li>
+        </ul>
         <h4>0.0.11（悬浮框分区触发：头部出胶囊 / 脚部出卡片）</h4>
         <ul>
             <li><b>显示逻辑分区触发</b>：鼠标停留在宠物<b>头部区域</b>（顶边下方 25% 高度以上）才显示头顶数值胶囊；停留在<b>脚部区域</b>（底边上方 25% 高度以下）才显示脚底按钮卡片；中部区域与跳跃缓冲区不触发；两层都不压宠物本体。</li>
