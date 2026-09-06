@@ -145,6 +145,7 @@ public class PetSettingsStateTest {
         assertEquals(PetSettingsState.DEFAULT_OPACITY_PERCENT, state.getOpacityPercent());
         assertEquals(PetTheme.WHALE, state.theme());
         assertFalse(state.isStartHidden());
+        assertTrue(state.isShowDecorations());
         assertEquals(PetSettingsState.DEFAULT_PET_NAME, state.getPetName());
         assertEquals(PetSettingsState.DEFAULT_INTIMACY, state.getIntimacy());
         assertEquals(PetSettingsState.DEFAULT_FISH_COUNT, state.getFishCount());
@@ -209,6 +210,7 @@ public class PetSettingsStateTest {
         dirty.setOpacityPercent(-7);
         dirty.setThemeName("bogus");
         dirty.setStartHidden(true);
+        dirty.setShowDecorations(false);
         dirty.setWindowLocation(88, 66);
         dirty.setPetName("露露");
         dirty.setIntimacy(341);
@@ -222,12 +224,25 @@ public class PetSettingsStateTest {
         assertEquals(PetSettingsState.MIN_OPACITY_PERCENT, target.getOpacityPercent());
         assertEquals(PetTheme.WHALE, target.theme());
         assertTrue(target.isStartHidden());
+        assertFalse(target.isShowDecorations());
         assertEquals(88, target.getX());
         assertEquals(66, target.getY());
         assertEquals("露露", target.getPetName());
         assertEquals(341, target.getIntimacy());
         assertEquals(20, target.getFishCount());
         assertEquals(1200, target.getPoints());
+    }
+
+    @Test
+    public void showDecorations_persistsThroughLoadState() {
+        PetSettingsState state = new PetSettingsState();
+        assertTrue(state.isShowDecorations());
+        state.setShowDecorations(false);
+        assertFalse(state.isShowDecorations());
+
+        PetSettingsState target = new PetSettingsState();
+        target.loadState(state);
+        assertFalse(target.isShowDecorations());
     }
 
     @Test

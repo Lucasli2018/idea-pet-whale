@@ -80,6 +80,16 @@ public final class PetPanel extends JPanel {
     static final int EVENT_LINE_SUPPRESS_MS = 1500;
     /** 最近一次点击时间戳（事件台词去重用） */
     private long lastClickAt = 0;
+    /** 上一次点击时间戳，用于双击判定 */
+    private long previousClickAt = 0;
+    /** 最近一次交互时间戳，用于空闲台词计时 */
+    private long lastInteractAt = System.currentTimeMillis();
+    /** 临时覆盖的动画（拖拽挥手、双击反馈等），null 表示由状态机接管 */
+    private PetAnimation overrideAnimation;
+    /** 临时覆盖动画的过期时间 */
+    private long overrideUntil = 0;
+    /** 双击判定窗口（毫秒） */
+    static final int DOUBLE_CLICK_WINDOW_MS = 400;
 
     public PetPanel(@NotNull PetStateService service, @NotNull PetFrame frame) {
         this.service = service;
@@ -107,12 +117,15 @@ public final class PetPanel extends JPanel {
             public void mouseReleased(MouseEvent e) {
                 if (e.isPopupTrigger()) {
                     frame.savePosition();
-                } else if (!draggedSincePress) {
+                } else if (draggedSincePress) {
+                    onDragFinished();
+                } else {
                     handleClick();
                 }
                 frame.savePosition();
                 pressX = -1;
                 pressY = -1;
+                draggedSincePress = false;
             }
 
             @Override
@@ -144,6 +157,13 @@ public final class PetPanel extends JPanel {
             long now = System.currentTimeMillis();
             PetStateSnapshot snapshot = service.render();
             PetAnimation desired = snapshot.animation();
+
+            // 临时动画覆盖：拖拽挥手、双击反馈等视觉事件优先级高于状态机
+            if (overrideAnimation != null && now < overrideUntil) {
+                desired = overrideAnimation;
+            } else {
+                overrideAnimation = null;
+            }
 
             if (desired != currentAnimation.get()) {
                 PetAnimation previous = currentAnimation.get();
@@ -185,6 +205,19 @@ public final class PetPanel extends JPanel {
         });
         careTimer.start();
 
+        // === 空闲随机台词定时器：每 35~55 秒在空闲时冒泡 ===
+        Timer idleTimer = new Timer(nextIdleBubbleDelayMs(), e -> {
+            if (service.isShowDecorations() && currentAnimation.get() == PetAnimation.IDLE) {
+                long now = System.currentTimeMillis();
+                if (now - lastInteractAt >= 30_000) {
+                    String line = isSleepyTime(now) ? PetDialogue.random("sleepy") : PetDialogue.random("bored");
+                    if (line != null) frame.showBubble(line);
+                }
+            }
+            ((Timer) e.getSource()).setDelay(nextIdleBubbleDelayMs());
+        });
+        idleTimer.start();
+
         themeRef.set(service.currentTheme());
         currentDurations.set(initialDurations());
     }
@@ -225,12 +258,46 @@ public final class PetPanel extends JPanel {
     }
 
     private void showEventLineIfNeeded(PetAnimation previous, PetAnimation desired, long now) {
+        if (!service.isShowDecorations()) return;
         if (now - lastClickAt <= EVENT_LINE_SUPPRESS_MS) return;
         if (desired == PetAnimation.JUMPING && previous != PetAnimation.JUMPING) {
             frame.showBubble(PetDialogue.random("done"));
         } else if (desired == PetAnimation.FAILED && previous != PetAnimation.FAILED) {
             frame.showBubble(PetDialogue.random("failed"));
         }
+    }
+
+    /** 拖拽结束触发挥手动画 + 拖拽台词。 */
+    private void onDragFinished() {
+        lastInteractAt = System.currentTimeMillis();
+        playOverrideAnimation(PetAnimation.WAVING, 1_800);
+        String line = PetDialogue.random("drag");
+        if (line != null) frame.showBubble(line);
+    }
+
+    /** 临时播放指定动画一段时间，过期后自动交回状态机。 */
+    private void playOverrideAnimation(PetAnimation animation, int durationMs) {
+        overrideAnimation = animation;
+        overrideUntil = System.currentTimeMillis() + durationMs;
+        currentAnimation.set(animation);
+        frameIndex = 0;
+        frameStartedAt = System.currentTimeMillis();
+        themeRef.set(service.currentTheme());
+        currentDurations.set(safeDurations(service.currentTheme(), animation, PetResources.rowOf(animation)));
+        repaint();
+    }
+
+    /** 下一次空闲冒泡的随机间隔（35~55 秒）。 */
+    private static int nextIdleBubbleDelayMs() {
+        return 35_000 + java.util.concurrent.ThreadLocalRandom.current().nextInt(20_000);
+    }
+
+    /** 判断当前是否为深夜（22:00 ~ 05:59），用于空闲台词切换。 */
+    private static boolean isSleepyTime(long timestamp) {
+        int hour = java.time.LocalDateTime.ofInstant(
+                java.time.Instant.ofEpochMilli(timestamp),
+                java.time.ZoneId.systemDefault()).getHour();
+        return hour >= 22 || hour < 6;
     }
 
     private void refreshThemeResources() {
@@ -277,6 +344,7 @@ public final class PetPanel extends JPanel {
     private void handleClick() {
         long now = System.currentTimeMillis();
         lastClickAt = now;
+        lastInteractAt = now;
         while (!clickTimes.isEmpty() && now - clickTimes.peekFirst() > RAPID_CLICK_WINDOW_MS) {
             clickTimes.pollFirst();
         }
@@ -285,12 +353,23 @@ public final class PetPanel extends JPanel {
         // 点击时先收起悬停面板，避免面板遮挡点击反馈
         frame.hideHoverPanel();
 
+        // 连点阈值优先
         if (clickTimes.size() >= RAPID_CLICK_THRESHOLD) {
             clickTimes.clear();
             service.setPhase(PetActivityPhase.FAILED, null, PetDialogue.random("rapid"));
             frame.showBubble(PetDialogue.random("rapid"));
             return;
         }
+
+        // 双击检测：距上次点击 < 400ms 触发开心反馈
+        if (previousClickAt > 0 && now - previousClickAt <= DOUBLE_CLICK_WINDOW_MS) {
+            playOverrideAnimation(PetAnimation.WAVING, 1_500);
+            frame.showBubble(PetDialogue.random("happy"));
+            previousClickAt = 0;
+            return;
+        }
+
+        previousClickAt = lastClickAt;
         service.setPhase(PetActivityPhase.DONE, null, PetDialogue.random("click"));
         frame.showBubble(PetDialogue.random("click"));
     }

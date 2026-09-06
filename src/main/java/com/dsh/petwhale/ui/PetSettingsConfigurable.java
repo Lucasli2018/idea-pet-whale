@@ -7,50 +7,65 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.options.Configurable;
 import com.intellij.openapi.ui.ComboBox;
 import com.intellij.openapi.util.NlsContexts;
+import com.intellij.util.ui.JBUI;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
-import javax.swing.BoxLayout;
-import javax.swing.BorderFactory;
-import java.awt.Component;
+import javax.swing.SwingUtilities;
+import javax.swing.plaf.basic.BasicButtonUI;
+import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.awt.RenderingHints;
 
 /**
  * 设置页：Settings → <b>Tools（工具）</b> → Pet Whale 鲸鱼娘。
  *
- * <p>暴露的配置与控制：
- * <ul>
- *   <li>大小（缩放百分比滑条，{@value PetSettingsState#MIN_SIZE_PERCENT}~{@value PetSettingsState#MAX_SIZE_PERCENT}）</li>
- *   <li>不透明度（滑条，{@value PetSettingsState#MIN_OPACITY_PERCENT}~{@value PetSettingsState#MAX_OPACITY_PERCENT}）</li>
- *   <li>默认主题（下拉框：原版 / 精致版）</li>
- *   <li>启动时收起（复选框）</li>
- *   <li>显示/隐藏鲸鱼娘（按钮，点击立即生效，不走 Apply）</li>
- * </ul>
+ * <p>采用卡片式布局：每个设置项位于圆角浅色卡片内，左侧为标题与描述，
+ * 右侧为控件与"恢复默认"链接。所有视觉调整（大小、不透明度、主题、显示/隐藏、
+ * 状态装饰）都会<b>实时预览</b>到当前桌宠窗口；只有点击 Apply / OK 时才会把值
+ * 持久化到 {@link PetSettingsState}。点击 Cancel / 关闭设置页时通过 {@link #reset()}
+ * 把预览回滚到持久化值。</p>
  *
- * <p>点击 Apply / OK 即写回 {@link PetSettingsState}，并立刻对当前桌宠窗口生效
- * （若窗口已创建）——不需要重启 IDE。</p>
- *
- * <p>布局纪律（UI 三不原则）：纵向 BoxLayout 自然堆叠 + 行间 gap，控件行内用
- * FlowLayout 左对齐，任何元素互不重叠。</p>
+ * <p>布局纪律（UI 三不原则）：纵向自然堆叠 + 行间 gap，控件互不重叠。</p>
  */
 public final class PetSettingsConfigurable implements Configurable {
 
     private PetSettingsState state;
+    private PetStateService service;
 
     private JSlider sizeSlider;
     private JLabel sizeValue;
     private JSlider opacitySlider;
     private JLabel opacityValue;
     private ComboBox<PetTheme> themeCombo;
-    private JCheckBox startHiddenCheck;
+    private ComboBox<BooleanOption> visibleCombo;
+    private ComboBox<BooleanOption> decorationsCombo;
     private JCheckBox careCheck;
+
+    /** 打开设置页时捕获的持久化值，用于 Cancel 时回滚预览。 */
+    private int initialSizePercent;
+    private int initialOpacityPercent;
+    private PetTheme initialTheme;
+    private boolean initialStartHidden;
+    private boolean initialShowDecorations;
+    private boolean initialCareEnabled;
 
     @Override
     public @NlsContexts.ConfigurableName String getDisplayName() {
@@ -60,88 +75,189 @@ public final class PetSettingsConfigurable implements Configurable {
     @Override
     public @Nullable JComponent createComponent() {
         state = ApplicationManager.getApplication().getService(PetSettingsState.class);
+        service = ApplicationManager.getApplication().getService(PetStateService.class);
+        captureInitials();
 
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+        JPanel content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBorder(JBUI.Borders.empty(16));
+        content.setOpaque(false);
 
-        // === 大小 ===
+        // === 宠物 ===
+        JPanel petCard = new CardPanel("宠物", "选择宠物并调整它的显示布局。");
+        petCard.add(buildItem("主题", "选择显示哪只宠物；每只宠物独立命名，可在宠物悬浮面板改名。",
+                buildThemeControl(), () -> setTheme(PetTheme.WHALE)));
+        petCard.add(buildItem("状态装饰", "在宠物状态气泡里显示喷水、小鱼等状态装饰；关闭后气泡只剩文字。",
+                buildDecorationsControl(), () -> setDecorations(true)));
+        content.add(petCard);
+
+        content.add(Box.createVerticalStrut(12));
+
+        // === 显示 ===
+        JPanel displayCard = new CardPanel("显示", "调整桌宠的大小、透明度与可见性。");
+        displayCard.add(buildItem("大小", "调整鲸鱼娘的显示尺寸。",
+                buildSizeControl(), () -> setSize(PetSettingsState.DEFAULT_SIZE_PERCENT)));
+        displayCard.add(buildItem("不透明度", "调整鲸鱼娘窗口的透明程度。",
+                buildOpacityControl(), () -> setOpacity(PetSettingsState.DEFAULT_OPACITY_PERCENT)));
+        displayCard.add(buildItem("显示宠物", "关闭后宠物隐藏，可从宠物悬浮面板重新召唤。",
+                buildVisibleControl(), () -> setVisible(false)));
+        content.add(displayCard);
+
+        content.add(Box.createVerticalStrut(12));
+
+        // === 关怀 ===
+        JPanel careCard = new CardPanel("关怀", "久坐提醒与休息建议。");
+        careCard.add(buildItem("久坐关怀", "连续编码 60 分钟提醒喝水/起身。",
+                buildCareControl(), () -> setCareEnabled(true)));
+        content.add(careCard);
+
+        content.add(Box.createVerticalGlue());
+
+        JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.setOpaque(false);
+        wrapper.add(content, BorderLayout.NORTH);
+        return wrapper;
+    }
+
+    private void captureInitials() {
+        initialSizePercent = state.getSizePercent();
+        initialOpacityPercent = state.getOpacityPercent();
+        initialTheme = state.theme();
+        initialStartHidden = state.isStartHidden();
+        initialShowDecorations = state.isShowDecorations();
+        initialCareEnabled = state.isCareEnabled();
+        // 如果持久化值与服务运行时不一致，以持久化值为准
+        service.setShowDecorations(initialShowDecorations);
+    }
+
+    // === 控件构造 ===
+
+    private JComponent buildSizeControl() {
         sizeSlider = new JSlider(
                 PetSettingsState.MIN_SIZE_PERCENT,
                 PetSettingsState.MAX_SIZE_PERCENT,
-                state.getSizePercent());
+                initialSizePercent);
         sizeSlider.setMajorTickSpacing(50);
         sizeSlider.setPaintTicks(true);
-        sizeValue = new JLabel();
-        sizeSlider.addChangeListener(e -> sizeValue.setText(sizeSlider.getValue() + "%"));
-        sizeValue.setText(sizeSlider.getValue() + "%");
-        panel.add(row("大小", sizeSlider, sizeValue));
+        sizeValue = new JLabel(initialSizePercent + "%");
+        sizeValue.setPreferredSize(new Dimension(40, sizeValue.getPreferredSize().height));
+        sizeSlider.addChangeListener(e -> {
+            sizeValue.setText(sizeSlider.getValue() + "%");
+            applySettingsPreview();
+        });
 
-        // === 不透明度 ===
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        row.setOpaque(false);
+        row.add(sizeSlider);
+        row.add(sizeValue);
+        return row;
+    }
+
+    private JComponent buildOpacityControl() {
         opacitySlider = new JSlider(
                 PetSettingsState.MIN_OPACITY_PERCENT,
                 PetSettingsState.MAX_OPACITY_PERCENT,
-                state.getOpacityPercent());
+                initialOpacityPercent);
         opacitySlider.setMajorTickSpacing(10);
         opacitySlider.setPaintTicks(true);
-        opacityValue = new JLabel();
-        opacitySlider.addChangeListener(e -> opacityValue.setText(opacitySlider.getValue() + "%"));
-        opacityValue.setText(opacitySlider.getValue() + "%");
-        panel.add(row("不透明度", opacitySlider, opacityValue));
-
-        // === 主题 ===
-        themeCombo = new ComboBox<>(PetTheme.values());
-        themeCombo.setSelectedItem(state.theme());
-        panel.add(row("主题", themeCombo));
-
-        // === 启动时收起 ===
-        startHiddenCheck = new JCheckBox("启动 IDE 时只显示\"召唤鲸鱼娘\"按钮");
-        startHiddenCheck.setSelected(state.isStartHidden());
-        panel.add(startHiddenCheck);
-
-        // === 久坐关怀 ===
-        careCheck = new JCheckBox("久坐关怀：连续编码 60 分钟提醒喝水/起身");
-        careCheck.setSelected(state.isCareEnabled());
-        panel.add(careCheck);
-
-        // === 显示/隐藏控制（点按钮立即生效，不走 Apply） ===
-        JPanel controlRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-        JLabel controlLabel = new JLabel("窗口");
-        controlLabel.setPreferredSize(new Dimension(70, controlLabel.getPreferredSize().height));
-        controlRow.add(controlLabel);
-        JButton showBtn = new JButton("显示鲸鱼娘");
-        JButton hideBtn = new JButton("隐藏鲸鱼娘");
-        showBtn.addActionListener(e -> {
-            PetFrame petFrame = PetStartupFrameHolder.current();
-            if (petFrame != null) {
-                petFrame.unhide();
-                startHiddenCheck.setSelected(false);
-            }
+        opacityValue = new JLabel(initialOpacityPercent + "%");
+        opacityValue.setPreferredSize(new Dimension(40, opacityValue.getPreferredSize().height));
+        opacitySlider.addChangeListener(e -> {
+            opacityValue.setText(opacitySlider.getValue() + "%");
+            applySettingsPreview();
         });
-        hideBtn.addActionListener(e -> {
-            PetFrame petFrame = PetStartupFrameHolder.current();
-            if (petFrame != null) {
-                petFrame.hide();
-                startHiddenCheck.setSelected(true);
-            }
-        });
-        controlRow.add(showBtn);
-        controlRow.add(hideBtn);
-        panel.add(controlRow);
 
-        return panel;
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        row.setOpaque(false);
+        row.add(opacitySlider);
+        row.add(opacityValue);
+        return row;
     }
 
-    /** 一行控件：左对齐 FlowLayout，天然不重叠。 */
-    private JPanel row(String label, JComponent... components) {
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-        JLabel lbl = new JLabel(label);
-        lbl.setPreferredSize(new Dimension(70, lbl.getPreferredSize().height));
-        row.add(lbl);
-        for (Component component : components) {
-            row.add(component);
+    private JComponent buildThemeControl() {
+        themeCombo = new ComboBox<>(PetTheme.values());
+        themeCombo.setSelectedItem(initialTheme);
+        themeCombo.addActionListener(e -> {
+            PetTheme selected = (PetTheme) themeCombo.getSelectedItem();
+            if (selected != null) service.setTheme(selected);
+        });
+        return themeCombo;
+    }
+
+    private JComponent buildVisibleControl() {
+        visibleCombo = new ComboBox<>(BooleanOption.values());
+        visibleCombo.setSelectedItem(initialStartHidden ? BooleanOption.OFF : BooleanOption.ON);
+        visibleCombo.addActionListener(e -> applyVisiblePreview());
+        return visibleCombo;
+    }
+
+    private JComponent buildDecorationsControl() {
+        decorationsCombo = new ComboBox<>(BooleanOption.values());
+        decorationsCombo.setSelectedItem(initialShowDecorations ? BooleanOption.ON : BooleanOption.OFF);
+        decorationsCombo.addActionListener(e -> {
+            BooleanOption selected = (BooleanOption) decorationsCombo.getSelectedItem();
+            service.setShowDecorations(selected == BooleanOption.ON);
+        });
+        return decorationsCombo;
+    }
+
+    private JComponent buildCareControl() {
+        careCheck = new JCheckBox("开启久坐关怀提醒");
+        careCheck.setSelected(initialCareEnabled);
+        careCheck.setOpaque(false);
+        return careCheck;
+    }
+
+    // === 实时预览动作 ===
+
+    private void applySettingsPreview() {
+        PetFrame frame = currentFrame();
+        if (frame != null) {
+            frame.applySettings(sizeSlider.getValue(), opacitySlider.getValue());
         }
-        return row;
+    }
+
+    private void applyVisiblePreview() {
+        PetFrame frame = currentFrame();
+        if (frame == null) return;
+        if (visibleCombo.getSelectedItem() == BooleanOption.ON) {
+            frame.unhide();
+        } else {
+            frame.hide();
+        }
+    }
+
+    // === 恢复默认 ===
+
+    private void setSize(int value) {
+        sizeSlider.setValue(value);
+        sizeValue.setText(value + "%");
+        applySettingsPreview();
+    }
+
+    private void setOpacity(int value) {
+        opacitySlider.setValue(value);
+        opacityValue.setText(value + "%");
+        applySettingsPreview();
+    }
+
+    private void setTheme(PetTheme theme) {
+        themeCombo.setSelectedItem(theme);
+        service.setTheme(theme);
+    }
+
+    private void setVisible(boolean shown) {
+        visibleCombo.setSelectedItem(shown ? BooleanOption.ON : BooleanOption.OFF);
+        applyVisiblePreview();
+    }
+
+    private void setDecorations(boolean enabled) {
+        decorationsCombo.setSelectedItem(enabled ? BooleanOption.ON : BooleanOption.OFF);
+        service.setShowDecorations(enabled);
+    }
+
+    private void setCareEnabled(boolean enabled) {
+        careCheck.setSelected(enabled);
     }
 
     @Override
@@ -150,7 +266,8 @@ public final class PetSettingsConfigurable implements Configurable {
         return sizeSlider.getValue() != state.getSizePercent()
                 || opacitySlider.getValue() != state.getOpacityPercent()
                 || themeCombo.getSelectedItem() != state.theme()
-                || startHiddenCheck.isSelected() != state.isStartHidden()
+                || (visibleCombo.getSelectedItem() == BooleanOption.ON) == state.isStartHidden()
+                || (decorationsCombo.getSelectedItem() == BooleanOption.ON) != state.isShowDecorations()
                 || careCheck.isSelected() != state.isCareEnabled();
     }
 
@@ -163,36 +280,166 @@ public final class PetSettingsConfigurable implements Configurable {
         if (selectedTheme instanceof PetTheme theme) {
             state.setThemeName(theme.name());
         }
-        state.setStartHidden(startHiddenCheck.isSelected());
+        state.setStartHidden(visibleCombo.getSelectedItem() != BooleanOption.ON);
+        state.setShowDecorations(decorationsCombo.getSelectedItem() == BooleanOption.ON);
         state.setCareEnabled(careCheck.isSelected());
 
-        // 实时生效：主题走状态服务广播；窗口几何走 PetFrame（可能尚未创建）
-        PetStateService service = ApplicationManager.getApplication().getService(PetStateService.class);
         service.setTheme(state.theme());
-        PetFrame frame = PetStartupFrameHolder.current();
+        service.setShowDecorations(state.isShowDecorations());
+        PetFrame frame = currentFrame();
         if (frame != null) {
             frame.applySettings(state.getSizePercent(), state.getOpacityPercent());
         }
+        captureInitials(); // 应用成功后，新的持久化值作为回滚基线
     }
 
     @Override
     public void reset() {
         if (state == null || sizeSlider == null) return;
+        // 回滚预览到持久化值
         sizeSlider.setValue(state.getSizePercent());
+        sizeValue.setText(state.getSizePercent() + "%");
         opacitySlider.setValue(state.getOpacityPercent());
+        opacityValue.setText(state.getOpacityPercent() + "%");
         themeCombo.setSelectedItem(state.theme());
-        startHiddenCheck.setSelected(state.isStartHidden());
+        visibleCombo.setSelectedItem(state.isStartHidden() ? BooleanOption.OFF : BooleanOption.ON);
+        decorationsCombo.setSelectedItem(state.isShowDecorations() ? BooleanOption.ON : BooleanOption.OFF);
         careCheck.setSelected(state.isCareEnabled());
+
+        service.setTheme(state.theme());
+        service.setShowDecorations(state.isShowDecorations());
+        PetFrame frame = currentFrame();
+        if (frame != null) {
+            frame.applySettings(state.getSizePercent(), state.getOpacityPercent());
+            if (state.isStartHidden()) frame.hide(); else frame.unhide();
+        }
+        captureInitials();
     }
 
     @Override
     public void disposeUIResources() {
         state = null;
+        service = null;
         sizeSlider = null;
         opacitySlider = null;
         themeCombo = null;
-        startHiddenCheck = null;
+        visibleCombo = null;
+        decorationsCombo = null;
         careCheck = null;
+    }
+
+    /** 取当前桌宠窗口；未创建时返回 null。 */
+    private static @Nullable PetFrame currentFrame() {
+        return PetStartupFrameHolder.current();
+    }
+
+    // === 卡片式 UI 辅助 ===
+
+    private static JPanel buildItem(String title, String description, JComponent control, Runnable restoreDefault) {
+        JPanel row = new JPanel(new GridBagLayout());
+        row.setOpaque(false);
+        row.setBorder(JBUI.Borders.empty(10, 14));
+
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 14f));
+        JLabel descLabel = new JLabel(description);
+        descLabel.setFont(descLabel.getFont().deriveFont(Font.PLAIN, 12f));
+        descLabel.setForeground(new Color(120, 120, 120));
+
+        JPanel textPanel = new JPanel(new BorderLayout(0, 4));
+        textPanel.setOpaque(false);
+        textPanel.add(titleLabel, BorderLayout.NORTH);
+        textPanel.add(descLabel, BorderLayout.CENTER);
+
+        JButton restore = linkButton("恢复默认");
+        restore.addActionListener(e -> {
+            if (SwingUtilities.isEventDispatchThread()) {
+                restoreDefault.run();
+            } else {
+                SwingUtilities.invokeLater(restoreDefault);
+            }
+        });
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.insets = new Insets(0, 0, 0, 12);
+        row.add(textPanel, gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 0.0;
+        gbc.insets = new Insets(0, 0, 0, 8);
+        row.add(control, gbc);
+
+        gbc.gridx = 2;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        row.add(restore, gbc);
+
+        return row;
+    }
+
+    private static JButton linkButton(String text) {
+        JButton btn = new JButton(text);
+        btn.setUI(new BasicButtonUI());
+        btn.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
+        btn.setOpaque(false);
+        btn.setContentAreaFilled(false);
+        btn.setForeground(new Color(70, 120, 200));
+        btn.setFont(btn.getFont().deriveFont(Font.PLAIN, 12f));
+        btn.setFocusPainted(false);
+        return btn;
+    }
+
+    /** 圆角浅色卡片容器。 */
+    private static final class CardPanel extends JPanel {
+        CardPanel(String title, String subtitle) {
+            setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+            setOpaque(false);
+            setBorder(JBUI.Borders.empty(16, 18));
+
+            JLabel titleLabel = new JLabel(title);
+            titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 16f));
+            JLabel subLabel = new JLabel(subtitle);
+            subLabel.setFont(subLabel.getFont().deriveFont(Font.PLAIN, 12f));
+            subLabel.setForeground(new Color(120, 120, 120));
+
+            JPanel header = new JPanel(new BorderLayout(0, 4));
+            header.setOpaque(false);
+            header.add(titleLabel, BorderLayout.NORTH);
+            header.add(subLabel, BorderLayout.CENTER);
+            header.setBorder(JBUI.Borders.emptyBottom(12));
+            add(header);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2 = (Graphics2D) g.create();
+            try {
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(245, 246, 248));
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
+                g2.setColor(new Color(220, 223, 228));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
+            } finally {
+                g2.dispose();
+            }
+        }
+    }
+
+    /** 开关下拉选项。 */
+    private enum BooleanOption {
+        ON("开"),
+        OFF("关");
+
+        private final String label;
+
+        BooleanOption(String label) { this.label = label; }
+
+        @Override public String toString() { return label; }
     }
 
     /**

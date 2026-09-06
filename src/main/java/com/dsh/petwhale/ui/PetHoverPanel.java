@@ -152,6 +152,20 @@ public final class PetHoverPanel {
         }
     }
 
+    /**
+     * 宠物窗口移动时调用：实时更新面板锚点，让悬浮框跟随宠物。
+     *
+     * @param centerX 宠物中心的屏幕 X
+     * @param petBottomY 宠物底边的屏幕 Y
+     */
+    public void updateLocation(int centerX, int petBottomY) {
+        this.anchorCenterX = centerX;
+        this.anchorPetBottomY = petBottomY;
+        if (window.isVisible()) {
+            SwingUtilities.invokeLater(this::reposition);
+        }
+    }
+
     /** 外部强制隐藏（例如点击宠物触发交互时）。 */
     public void hideNow() {
         locked = false;

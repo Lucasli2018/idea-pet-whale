@@ -55,6 +55,8 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
     private boolean startHidden = false;
     /** 久坐关怀提醒（连续编码 60 分钟提醒喝水/起身），默认开启 */
     private boolean careEnabled = true;
+    /** 是否显示状态装饰（喷水、小鱼等表情气泡装饰），默认开启 */
+    private boolean showDecorations = true;
 
     /** 宠物档案：名字（默认"鲸鱼娘"） */
     @NotNull private String petName = DEFAULT_PET_NAME;
@@ -118,6 +120,11 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
     public boolean isCareEnabled() { return careEnabled; }
 
     public void setCareEnabled(boolean value) { this.careEnabled = value; }
+
+    /** 是否显示状态装饰（喷水、小鱼等表情气泡装饰）。 */
+    public boolean isShowDecorations() { return showDecorations; }
+
+    public void setShowDecorations(boolean value) { this.showDecorations = value; }
 
     /** 宠物名字。 */
     @NotNull public String getPetName() { return petName; }
@@ -227,6 +234,7 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
         setThemeName(state.themeName);
         this.startHidden = state.startHidden;
         this.careEnabled = state.careEnabled;
+        this.showDecorations = state.showDecorations;
         setPetName(state.petName);
         this.intimacy = Math.max(0, state.intimacy);
         this.fishCount = Math.max(0, state.fishCount);

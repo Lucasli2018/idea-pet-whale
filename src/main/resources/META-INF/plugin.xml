@@ -1,7 +1,7 @@
 <idea-plugin url="https://github.com/zhu1090093659/idea-pet-whale">
     <id>com.dsh.petwhale</id>
     <name>Pet Whale</name>
-    <version>0.0.5</version>
+    <version>0.0.6</version>
     <vendor email="1906859953@qq.com" url="https://github.com/Lucasli2018">lucasli</vendor>
 
     <idea-version since-build="231"/>
@@ -15,6 +15,14 @@
     ]]></description>
 
     <change-notes><![CDATA[
+        <h4>0.0.6（设置页重构 + 悬浮框跟随 + 实时预览 + 交互丰富）</h4>
+        <ul>
+            <li><b>设置页卡片式重构</b>：参考新版设置风格，将设置项分组为「宠物 / 显示 / 关怀」圆角浅色卡片，每项带标题、描述与「恢复默认」链接；移除「启动 IDE 时只显示'召唤鲸鱼娘'按钮」复选框，统一用「显示宠物」开关控制可见性。</li>
+            <li><b>实时预览 + 确认生效</b>：大小、不透明度、主题、显示/隐藏、状态装饰的调整会即时反映到桌宠窗口；只有点击 Apply / OK 才持久化，Cancel / 关闭时回滚预览。</li>
+            <li><b>悬浮框实时跟随</b>：拖拽或缩放宠物时，悬停面板会同步更新位置，不再滞留在旧位置。</li>
+            <li><b>状态装饰开关</b>：新增「状态装饰」选项，关闭后事件气泡（完成/失败/空闲等）不再弹出，用户触发与关怀气泡不受影响。</li>
+            <li><b>更多表情动作与交互</b>：拖拽结束触发挥手动画 + 拖拽台词；快速双击触发开心反馈；空闲 30 秒以上会随机冒泡（深夜自动切换为 sleepy 台词）；扩展 dialogue/whale.json 新增 bored / drag / happy / sleepy 四组台词。</li>
+        </ul>
         <h4>0.0.5（悬停交互面板 + 跳跃动画修复 + 宠物档案）</h4>
         <ul>
             <li><b>悬停交互面板</b>：鼠标滑过鲸鱼娘时，下方浮现圆角深色卡片，显示名字、亲密度等级、小鱼干、点数；支持"喂食 / 改名 / 隐藏"三个快捷按钮。面板与宠物本体通过进入/离开延迟计时器实现平滑过渡。</li>

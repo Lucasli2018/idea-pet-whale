@@ -145,10 +145,19 @@ public final class PetFrame {
 
     /**
      * 移动桌宠到指定视觉位置。PetPanel 拖拽时调用。
-     * 内部会把窗口定位到 (x, y - jumpRoom)。
+     * 内部会把窗口定位到 (x, y - jumpRoom)，并同步更新悬浮框位置。
      */
     public void setLocation(int x, int y) {
         if (frame != null) frame.setLocation(x, y - jumpRoom());
+        updateHoverLocation(x, y);
+    }
+
+    private void updateHoverLocation(int visualX, int visualY) {
+        if (hover == null) return;
+        Dimension size = frame == null ? new Dimension() : frame.getSize();
+        int centerX = visualX + size.width / 2;
+        int bottomY = visualY + PetSettingsState.scaledHeight(currentSizePercent());
+        hover.updateLocation(centerX, bottomY);
     }
 
     /**
@@ -161,7 +170,7 @@ public final class PetFrame {
     }
 
     /**
-     * 实时应用新的大小与不透明度（设置页 Apply 时调用）。
+     * 实时应用新的大小与不透明度（设置页 Apply / 实时预览时调用）。
      * EDT 异步；桌宠未构建时先记住，等 buildFrame 再生效。
      */
     public void applySettings(int sizePercent, int opacityPercent) {
@@ -171,7 +180,7 @@ public final class PetFrame {
             Point visual = getLocation();
             frame.setSize(size.width, size.height);
             // 保持宠物视觉位置不变：窗口大小改变后，窗口左上角要重新计算
-            frame.setLocation(visual.x, visual.y - jumpRoom(sizePercent));
+            setLocation(visual.x, visual.y);
             applyOpacity(opacityPercent);
         });
     }

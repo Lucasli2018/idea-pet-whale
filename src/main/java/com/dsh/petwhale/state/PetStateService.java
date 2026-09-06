@@ -40,6 +40,8 @@ public final class PetStateService implements Disposable {
     private final List<Listener> listeners = new CopyOnWriteArrayList<>();
     /** 当前主题，使用 {@code volatile} 保证多线程可见性 */
     private volatile PetTheme theme = PetTheme.WHALE;
+    /** 是否显示状态装饰（喷水、小鱼等表情气泡装饰），运行时标志 */
+    private volatile boolean showDecorations = true;
     /** 久坐关怀顾问（打字活动计时 → 60 分钟提醒休息） */
     private final PetCareAdvisor careAdvisor = new PetCareAdvisor();
 
@@ -76,6 +78,16 @@ public final class PetStateService implements Disposable {
 
     /** 取当前主题。 */
     @NotNull public PetTheme theme() { return theme; }
+
+    /** 是否显示状态装饰。 */
+    public boolean isShowDecorations() { return showDecorations; }
+
+    /**
+     * 设置是否显示状态装饰。
+     */
+    public void setShowDecorations(boolean value) {
+        this.showDecorations = value;
+    }
 
     /**
      * 只设置阶段，不携带气泡文案。
