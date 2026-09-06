@@ -14,6 +14,12 @@
     ]]></description>
 
     <change-notes><![CDATA[
+        <h4>1.0.1</h4>
+        <ul>
+            <li>修复：启动时 PetFrame 抛 IllegalStateException（missing spritesheet at spritesheet.webp）。PetResources 现在按 manifest 所在目录解析 spritesheetPath，v2 契约下的相对路径能正确找到 classpath 资源。</li>
+            <li>新增 classpath 资源烟雾测试（PetResourcesTest.spriteSheetsAreResolvableOnClasspath），把"打包带资源"这条契约钉死，避免下次再漏。</li>
+            <li>新增 resolveSpritesheetPath 单元测试，覆盖相对路径/绝对路径/无目录前缀三种边界。</li>
+        </ul>
         <h4>1.0.0</h4>
         <ul>
             <li>首个发布版：透明悬浮桌宠、9 状态动画、与编辑器/构建/VCS/测试事件联动、主题（原版/精致版）切换、拖拽定位、隐藏按钮。</li>

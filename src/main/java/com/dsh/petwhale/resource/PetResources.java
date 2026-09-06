@@ -59,8 +59,11 @@ public final class PetResources {
     private static Theme build(PetTheme theme) {
         // 1) 解析清单（fail-closed，缺字段直接抛）
         PetManifest manifest = PetManifestParser.parse(theme.manifestResource());
-        // 2) 读取精灵图（WebP 解码；JDK 17 可能失败）
-        BufferedImage sheet = loadSpritesheet(manifest.spritesheetPath());
+        // 2) 读取精灵图（WebP 解码；JDK 17 可能失败）。
+        //    spritesheetPath 在 v2 manifest 里是相对 manifest 所在目录的相对路径，
+        //    必须先拼上 manifest 目录前缀才能在 classpath 上找到。
+        String resolved = resolveSpritesheetPath(theme.manifestResource(), manifest.spritesheetPath());
+        BufferedImage sheet = loadSpritesheet(resolved);
         // 3) 按行切帧
         Map<PetAnimation, BufferedImage[]> frameMap = new EnumMap<>(PetAnimation.class);
         for (PetAnimation animation : PetAnimation.values()) {
@@ -78,6 +81,25 @@ public final class PetResources {
             frameMap.put(animation, frames);
         }
         return new Theme(theme, manifest, sheet, frameMap);
+    }
+
+    /**
+     * 把 manifest 里声明的 spritesheetPath 解析成可在 classpath 上访问的完整路径。
+     * <ul>
+     *   <li>以 {@code /} 开头视为绝对 classpath 路径，原样返回</li>
+     *   <li>否则视为相对 manifest 所在目录，拼上 manifest 路径前缀</li>
+     * </ul>
+     *
+     * @param manifestResource manifest 的 classpath 路径（如 {@code /images/whale/pet.json}）
+     * @param spritesheetPath manifest 中声明的精灵图路径（如 {@code spritesheet.webp}）
+     * @return 完整的 classpath 路径，可直接传给 {@link Class#getResourceAsStream(String)}
+     */
+    @NotNull
+    static String resolveSpritesheetPath(@NotNull String manifestResource, @NotNull String spritesheetPath) {
+        if (spritesheetPath.startsWith("/")) return spritesheetPath;
+        int slash = manifestResource.lastIndexOf('/');
+        String prefix = slash >= 0 ? manifestResource.substring(0, slash + 1) : "/";
+        return prefix + spritesheetPath;
     }
 
     /**
