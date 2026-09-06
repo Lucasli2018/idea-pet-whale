@@ -52,6 +52,10 @@ public final class PetPanel extends JPanel {
     private int frameIndex = 0;
     /** 当前动画起始时间戳，用于计算帧切换 */
     private long frameStartedAt = System.currentTimeMillis();
+    /** 拖拽按下点 X（-1 = 未按下） */
+    private int pressX = -1;
+    /** 拖拽按下点 Y（-1 = 未按下） */
+    private int pressY = -1;
 
     public PetPanel(@NotNull PetStateService service, @NotNull PetFrame frame) {
         this.service = service;
@@ -64,22 +68,34 @@ public final class PetPanel extends JPanel {
         MouseAdapter press = new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                // 偏移量：按下时的鼠标相对位置，拖动时用于计算新坐标
-                // （目前用 e.getX/getY 直接定位，简单够用）
+                // 记录按下点：拖动偏移 = 鼠标当前坐标 - 按下点坐标
+                pressX = e.getX();
+                pressY = e.getY();
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
-                if (e.isPopupTrigger()) frame.showHoverPanel(e.getX(), e.getY());
+                if (e.isPopupTrigger()) {
+                    frame.showHoverPanel(e.getX(), e.getY());
+                } else {
+                    // 松手 = 拖拽（或点击）结束，把最新位置持久化
+                    frame.savePosition();
+                }
+                pressX = -1;
+                pressY = -1;
             }
         };
         MouseMotionAdapter drag = new MouseMotionAdapter() {
             @Override
             public void mouseDragged(MouseEvent e) {
+                if (pressX < 0 || pressY < 0) {
+                    // 没有按下记录（异常事件序列），跳过本次拖动
+                    return;
+                }
                 java.awt.Point p = frame.getLocation();
                 frame.setLocation(
-                        p.x + e.getX() - 12,
-                        p.y + e.getY() - 12);
+                        p.x + e.getX() - pressX,
+                        p.y + e.getY() - pressY);
             }
         };
         addMouseListener(press);
@@ -168,7 +184,8 @@ public final class PetPanel extends JPanel {
 
     /**
      * Swing 在 EDT 上回调的绘制方法。
-     * 绘制当前帧精灵图到 (0,0)。
+     * 先用 {@link java.awt.Composite#Clear} 整面擦除到全透明（防止上一帧精灵图
+     * 残留在透明窗体上形成"重影"），再按当前面板尺寸缩放绘制当前帧。
      * 任何异常都走 finally 释放 Graphics2D 资源，避免泄漏。
      */
     @Override
@@ -176,12 +193,19 @@ public final class PetPanel extends JPanel {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g.create();
         try {
+            // 整面清屏到全透明：非 opaque 面板的 super.paintComponent 不会清像素，
+            // 不主动擦除的话旧帧会一直叠在新帧上
+            g2.setComposite(java.awt.AlphaComposite.Clear);
+            g2.fillRect(0, 0, getWidth(), getHeight());
+            g2.setComposite(java.awt.AlphaComposite.SrcOver);
+
             PetResources.Theme theme = themeRef.get();
             if (theme == null) return;
             BufferedImage[] frames = theme.framesFor(currentAnimation.get());
             if (frames.length == 0) return;
             int idx = Math.min(frameIndex, frames.length - 1);
-            g2.drawImage(frames[idx], 0, 0, null);
+            // 缩放绘制：面板尺寸即目标尺寸（PetFrame 按设置的比例 setSize）
+            g2.drawImage(frames[idx], 0, 0, getWidth(), getHeight(), null);
         } finally {
             g2.dispose();
         }

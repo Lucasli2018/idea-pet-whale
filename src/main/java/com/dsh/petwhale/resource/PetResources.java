@@ -7,7 +7,8 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -24,12 +25,26 @@ import java.util.Map;
  * 解码失败时本类会立刻抛 {@link IllegalStateException} 并附上明确错误信息，
  * 让用户知道去哪排查，而不是桌宠悄悄不显示。</p>
  *
- * <p>缓存用 {@link EnumMap} + synchronized 方法，进程内单次加载。</p>
+ * <p>缓存是有界 LRU（{@code accessOrder} + 上限 {@value #MAX_CACHED_THEMES}）：
+ * 内置主题只有两套时等价于全量缓存；未来接入用户自定义主题（P3）也不会无界膨胀，
+ * 淘汰策略自动回收最早访问的主题。</p>
  */
 public final class PetResources {
 
-    /** 已加载主题缓存（key: 主题枚举，value: 完整 Theme 记录） */
-    private static final Map<PetTheme, Theme> cache = new EnumMap<>(PetTheme.class);
+    /** 主题缓存上限（LRU 淘汰）。内置 2 套 + 自定义主题余量。 */
+    static final int MAX_CACHED_THEMES = 4;
+
+    /**
+     * 已加载主题缓存（key: 主题枚举，value: 完整 Theme 记录）。
+     * accessOrder=true：get 会把命中项移到队尾，最久未访问的在队首被淘汰。
+     */
+    private static final Map<PetTheme, Theme> cache =
+            new LinkedHashMap<>(MAX_CACHED_THEMES, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<PetTheme, Theme> eldest) {
+                    return size() > MAX_CACHED_THEMES;
+                }
+            };
 
     /** 私有构造，禁止实例化。 */
     private PetResources() {
@@ -65,7 +80,7 @@ public final class PetResources {
         String resolved = resolveSpritesheetPath(theme.manifestResource(), manifest.spritesheetPath());
         BufferedImage sheet = loadSpritesheet(resolved);
         // 3) 按行切帧
-        Map<PetAnimation, BufferedImage[]> frameMap = new EnumMap<>(PetAnimation.class);
+        Map<PetAnimation, BufferedImage[]> frameMap = new HashMap<>(PetAnimation.values().length);
         for (PetAnimation animation : PetAnimation.values()) {
             int row = rowOf(animation);
             int frameCount = manifest.frameCount(row);

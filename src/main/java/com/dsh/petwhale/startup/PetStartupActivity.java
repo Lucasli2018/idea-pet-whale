@@ -71,4 +71,12 @@ public final class PetStartupActivity implements StartupActivity, StartupActivit
             }
         }
     }
+
+    /**
+     * 取当前全局桌宠窗口（设置页 Apply 时实时生效用）。
+     * 尚未创建（IDE 刚启动还没 ready）或已销毁时返回 {@code null}。
+     */
+    public static PetFrame currentFrame() {
+        return petFrame;
+    }
 }

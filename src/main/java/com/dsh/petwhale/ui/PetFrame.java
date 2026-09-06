@@ -1,7 +1,9 @@
 package com.dsh.petwhale.ui;
 
 import com.dsh.petwhale.resource.PetManifest;
+import com.dsh.petwhale.state.PetSettingsState;
 import com.dsh.petwhale.state.PetStateService;
+import com.intellij.openapi.application.ApplicationManager;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.BorderFactory;
@@ -26,10 +28,12 @@ import java.awt.event.MouseEvent;
  *   <li>{@link JFrame} 设置 {@code undecorated=true} + {@code always-on-top=true}
  *       —— 没有任何窗口装饰，永远置顶，浮在所有编辑器、工具窗口、弹窗之上</li>
  *   <li>背景色用 {@code (0,0,0,0)} 完全透明 —— 桌面背景可以透出来</li>
- *   <li>初始位置在屏幕右下角（用 {@code getMaximumWindowBounds} 排除任务栏）</li>
+ *   <li>启动时从 {@link PetSettingsState} 恢复大小 / 不透明度 / 上次位置 / 主题；
+ *       没有保存过位置则自动定位右下角（用 {@code getMaximumWindowBounds} 排除任务栏）</li>
  *   <li>右键唤起 {@link PetHoverPanel}（主题切换 + 隐藏）</li>
- *   <li>鼠标拖动由 {@link PetPanel} 的 MouseAdapter 处理，本类只暴露位置读写</li>
- *   <li>"隐藏"动作销毁桌宠 + 显示一个小的"召唤鲸鱼娘"召唤按钮</li>
+ *   <li>鼠标拖动由 {@link PetPanel} 的 MouseAdapter 处理，本类只暴露位置读写；
+ *       拖拽结束 / 隐藏 / 销毁时把当前位置写回设置持久化</li>
+ *   <li>"隐藏"动作收起桌宠 + 显示一个小的"召唤鲸鱼娘"召唤按钮；隐藏状态跨重启记忆</li>
  * </ul>
  *
  * <p>所有 Swing 操作都通过 {@link SwingUtilities#invokeLater} 切到 EDT。
@@ -47,6 +51,8 @@ public final class PetFrame {
     private JWindow summon;
     /** 桌宠当前是否可见（可见包括 summon 状态——召唤按钮也算"用户能看到"） */
     private boolean visible = true;
+    /** 用户设置（应用级持久化）；构造时解析，null 仅出现在平台测试环境 */
+    private final PetSettingsState settings;
 
     /**
      * 构造时仅持有 service 引用，不创建任何 Swing 组件。
@@ -54,6 +60,17 @@ public final class PetFrame {
      */
     public PetFrame(@NotNull PetStateService service) {
         this.service = service;
+        this.settings = loadSettings();
+    }
+
+    /** 应用级服务获取；headless/测试环境下可能拿不到，返回 null 并让调用方降级。 */
+    private static PetSettingsState loadSettings() {
+        try {
+            if (ApplicationManager.getApplication() == null) return null;
+            return ApplicationManager.getApplication().getService(PetSettingsState.class);
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     /** 显示桌宠窗口（EDT 异步）。 */
@@ -64,6 +81,7 @@ public final class PetFrame {
     /** 完全销毁所有窗口（EDT 异步）。不可恢复，需要重新再 {@link #show}。 */
     public void dispose() {
         SwingUtilities.invokeLater(() -> {
+            savePosition();
             if (hover != null) hover.dispose();
             if (frame != null) frame.dispose();
             if (summon != null) summon.dispose();
@@ -73,9 +91,11 @@ public final class PetFrame {
 
     /**
      * 隐藏桌宠（不销毁）：桌宠窗口和悬停面板消失，右下角留下"召唤鲸鱼娘"按钮。
+     * 隐藏状态写入设置持久化，下次启动直接收起。
      */
     public void hide() {
         SwingUtilities.invokeLater(() -> {
+            if (settings != null) settings.setStartHidden(true);
             if (frame != null) frame.setVisible(false);
             if (hover != null) hover.setVisible(false);
             if (summon == null) summon = buildSummon();
@@ -105,6 +125,44 @@ public final class PetFrame {
     }
 
     /**
+     * 拖拽结束时由 PetPanel 调用：把当前位置持久化。
+     * 线程安全：内部直接写设置对象（POJO 字段写入），无需切 EDT。
+     */
+    public void savePosition() {
+        if (frame == null || settings == null) return;
+        Point p = frame.getLocation();
+        settings.setWindowLocation(p.x, p.y);
+    }
+
+    /**
+     * 实时应用新的大小与不透明度（设置页 Apply 时调用）。
+     * EDT 异步；桌宠未构建时先记住，等 buildFrame 再生效。
+     *
+     * @param sizePercent 缩放百分比（未经 clamp 的原始值，内部统一走 PetSettingsState 的 clamp）
+     * @param opacityPercent 不透明度百分比
+     */
+    public void applySettings(int sizePercent, int opacityPercent) {
+        SwingUtilities.invokeLater(() -> {
+            if (frame == null) return;
+            int w = PetSettingsState.scaledWidth(sizePercent);
+            int h = PetSettingsState.scaledHeight(sizePercent);
+            frame.setSize(w, h);
+            applyOpacity(opacityPercent);
+        });
+    }
+
+    /** 设置窗口整体不透明度；平台不支持时静默跳过（保持完全可见）。 */
+    private void applyOpacity(int opacityPercent) {
+        if (frame == null) return;
+        try {
+            float opacity = PetSettingsState.clampOpacityPercent(opacityPercent) / 100f;
+            frame.setOpacity(opacity);
+        } catch (Throwable ignored) {
+            // 某些窗口系统不支持 uniform translucency，忽略即可
+        }
+    }
+
+    /**
      * 显示悬停面板（懒加载：首次调用时构造）。
      * 位置：桌宠窗口内部坐标 + 偏移（避免遮挡桌宠本身）。
      */
@@ -123,15 +181,26 @@ public final class PetFrame {
 
     /** 构造主桌宠窗口（在 EDT 上调用）。 */
     private void buildFrame() {
+        int sizePercent = settings == null
+                ? PetSettingsState.DEFAULT_SIZE_PERCENT : settings.getSizePercent();
+        int opacityPercent = settings == null
+                ? PetSettingsState.DEFAULT_OPACITY_PERCENT : settings.getOpacityPercent();
+
+        // 主题先于面板构建恢复，PetPanel 构造时就能拿到正确的精灵图
+        if (settings != null) service.setTheme(settings.theme());
+
         frame = new JFrame("Idea Pet Whale");
         frame.setUndecorated(true);
         frame.setAlwaysOnTop(true);
         // 全透明背景：让桌面背景透出来
         frame.setBackground(new Color(0, 0, 0, 0));
-        frame.setSize(PetManifest.CELL_WIDTH, PetManifest.CELL_HEIGHT);
-        frame.setLocation(defaultLocation());
+        int w = PetSettingsState.scaledWidth(sizePercent);
+        int h = PetSettingsState.scaledHeight(sizePercent);
+        frame.setSize(w, h);
+        frame.setLocation(savedOrDefaultLocation(w, h));
         frame.setContentPane(new PetPanel(service, this));
         frame.setIconImage(makeIcon());
+        applyOpacity(opacityPercent);
         // 监听鼠标右键唤起悬停面板
         frame.addMouseListener(new MouseAdapter() {
             @Override
@@ -139,13 +208,23 @@ public final class PetFrame {
                 if (e.isPopupTrigger()) showHoverPanel(e.getX(), e.getY());
             }
         });
-        frame.setVisible(true);
+        frame.setVisible(!startHidden());
         visible = true;
+        if (startHidden()) {
+            // 启动即收起：只显示召唤按钮
+            if (summon == null) summon = buildSummon();
+            summon.setVisible(true);
+        }
+    }
+
+    /** 是否"启动时收起"（EDT 读取，只影响 buildFrame 一次）。 */
+    private boolean startHidden() {
+        return settings != null && settings.isStartHidden();
     }
 
     /**
      * 构造"召唤鲸鱼娘"小按钮。位置：屏幕右下角（任务栏上方）。
-     * 点击后销毁按钮、复原 PetFrame。
+     * 点击后销毁按钮、复原 PetFrame，并把"启动时收起"重置为 false。
      */
     private JWindow buildSummon() {
         JWindow window = new JWindow();
@@ -155,6 +234,8 @@ public final class PetFrame {
             // 销毁召唤按钮
             window.dispose();
             summon = null;
+            // 用户主动召唤 = 不再需要"启动时收起"
+            if (settings != null) settings.setStartHidden(false);
             // 复原桌宠本体
             if (frame != null) {
                 frame.setVisible(true);
@@ -175,19 +256,51 @@ public final class PetFrame {
     }
 
     /**
+     * 恢复上次保存的位置；没有保存记录（-1）或已保存位置被拔掉的显示器甩出屏幕外时，
+     * 回落到右下角默认位置。
+     */
+    private Point savedOrDefaultLocation(int width, int height) {
+        if (settings != null && settings.getX() >= 0 && settings.getY() >= 0) {
+            Point saved = new Point(settings.getX(), settings.getY());
+            if (isOnScreen(saved, width, height)) return saved;
+        }
+        return defaultLocation(width, height);
+    }
+
+    /** 保存点至少要有 100×40 像素落在某块屏幕内，否则视为不可用。 */
+    private static boolean isOnScreen(Point p, int width, int height) {
+        try {
+            for (java.awt.GraphicsDevice device : GraphicsEnvironment
+                    .getLocalGraphicsEnvironment().getScreenDevices()) {
+                Rectangle bounds = device.getDefaultConfiguration().getBounds();
+                int probeW = Math.min(width, 100);
+                int probeH = Math.min(height, 40);
+                if (p.x + probeW > bounds.x && p.x < bounds.x + bounds.width
+                        && p.y + probeH > bounds.y && p.y < bounds.y + bounds.height) {
+                    return true;
+                }
+            }
+        } catch (Throwable t) {
+            // 屏幕枚举失败时宁可信其有，避免误回默认位置
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * 默认位置：屏幕右下角（排除任务栏区域）。
      * 使用 {@code getMaximumWindowBounds} 而不是 {@code getScreenSize} 可以在多显示器
      * + 任务栏场景下保证桌宠不躲在任务栏后面。
      */
-    private Point defaultLocation() {
+    private Point defaultLocation(int width, int height) {
         Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
         Rectangle bounds = GraphicsEnvironment.getLocalGraphicsEnvironment()
                 .getMaximumWindowBounds();
-        int x = bounds.x + bounds.width - PetManifest.CELL_WIDTH - 32;
-        int y = bounds.y + bounds.height - PetManifest.CELL_HEIGHT - 64;
+        int x = bounds.x + bounds.width - width - 32;
+        int y = bounds.y + bounds.height - height - 64;
         // 兜底：若 bounds 计算出错（极小屏幕），保证不越界
-        if (x < 0) x = Math.max(0, screen.width - PetManifest.CELL_WIDTH - 32);
-        if (y < 0) y = Math.max(0, screen.height - PetManifest.CELL_HEIGHT - 64);
+        if (x < 0) x = Math.max(0, screen.width - width - 32);
+        if (y < 0) y = Math.max(0, screen.height - height - 64);
         return new Point(x, y);
     }
 
@@ -195,8 +308,7 @@ public final class PetFrame {
      * 占位图标（16×16 全透明）—— 任务栏看不出区别，但避免某些环境下 NullPointerException。
      */
     private java.awt.Image makeIcon() {
-        java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(
+        return new java.awt.image.BufferedImage(
                 16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB);
-        return img;
     }
 }

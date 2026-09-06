@@ -1,7 +1,7 @@
 <idea-plugin url="https://github.com/zhu1090093659/idea-pet-whale">
     <id>com.dsh.petwhale</id>
     <name>Pet Whale</name>
-    <version>0.0.1</version>
+    <version>0.0.2</version>
     <vendor email="1906859953@qq.com" url="https://github.com/Lucasli2018">lucasli</vendor>
 
     <idea-version since-build="231"/>
@@ -15,6 +15,14 @@
     ]]></description>
 
     <change-notes><![CDATA[
+        <h4>0.0.2（P0 地基加固）</h4>
+        <ul>
+            <li>新增设置页（Settings → Appearance &amp; Behavior → Pet Whale 鲸鱼娘）：大小缩放（50%~200%）、窗口不透明度（30%~100%）、默认主题、启动时收起，Apply 即时生效。</li>
+            <li>设置持久化（PetSettingsState，pet.whale.settings.xml）：窗口大小/位置/透明度/主题/隐藏状态跨重启还原；保存的位置被拔掉的显示器甩出屏幕时自动回落右下角。</li>
+            <li>渲染稳定性：每帧 AlphaComposite.Clear 整面清屏，消除透明窗体上的精灵图残影（重影）。</li>
+            <li>主题缓存改为有界 LRU（上限 4），为后续自定义主题铺路。</li>
+            <li>拖拽偏移修正：按按下点计算偏移（原先硬编码 12px），松手即持久化位置。</li>
+        </ul>
         <h4>0.0.1</h4>
         <ul>
             <li>项目重命名：dsh-pet-whale → idea-pet-whale。版本号从 1.0.1 回退到 0.0.1 起算，后续每次升级 +0.0.1。</li>
@@ -31,5 +39,10 @@
         <postStartupActivity implementation="com.dsh.petwhale.startup.PetStartupActivity"/>
         <editorFactoryListener implementation="com.dsh.petwhale.listener.PetEditorListener"/>
         <applicationService serviceImplementation="com.dsh.petwhale.state.PetStateService"/>
+        <applicationService serviceImplementation="com.dsh.petwhale.state.PetSettingsState"/>
+        <applicationConfigurable parentId="appearance"
+                                 id="com.dsh.petwhale.settings"
+                                 displayName="Pet Whale 鲸鱼娘"
+                                 instance="com.dsh.petwhale.ui.PetSettingsConfigurable"/>
     </extensions>
 </idea-plugin>
