@@ -1,4 +1,4 @@
-# DSH Pet Whale — 鲸鱼娘桌宠（JetBrains IDEA 2023.1+）
+# Idea Pet Whale — 鲸鱼娘桌宠（JetBrains IDEA 2023.1+）
 
 > 把 DSH Web 端的鲸鱼娘桌宠移植到 JetBrains IDEA 平台。一只悬浮在屏幕右下角的
 > 桌面宠物，监听你的编辑器和 VCS 活动，自动切换动画状态。
@@ -7,12 +7,12 @@
 
 <table>
   <tr>
-    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/idle.gif" alt="idle" /><br /><b>idle</b></td>
-    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/running.gif" alt="running" /><br /><b>running</b></td>
-    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/waving.gif" alt="waving" /><br /><b>waving</b></td>
-    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/jumping.gif" alt="jumping" /><br /><b>jumping</b></td>
-    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/failed.gif" alt="failed" /><br /><b>failed</b></td>
-    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/review.gif" alt="review" /><br /><b>review</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/idea-pet-whale/raw/main/src/main/resources/images/whale/previews/idle.gif" alt="idle" /><br /><b>idle</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/idea-pet-whale/raw/main/src/main/resources/images/whale/previews/running.gif" alt="running" /><br /><b>running</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/idea-pet-whale/raw/main/src/main/resources/images/whale/previews/waving.gif" alt="waving" /><br /><b>waving</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/idea-pet-whale/raw/main/src/main/resources/images/whale/previews/jumping.gif" alt="jumping" /><br /><b>jumping</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/idea-pet-whale/raw/main/src/main/resources/images/whale/previews/failed.gif" alt="failed" /><br /><b>failed</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/idea-pet-whale/raw/main/src/main/resources/images/whale/previews/review.gif" alt="review" /><br /><b>review</b></td>
   </tr>
 </table>
 
@@ -37,7 +37,7 @@
 ## Build
 
 ```sh
-mvn -B -DskipTests=true package          # produces target/dsh-pet-whale-1.0.0.jar + ...-plugin.zip
+mvn -B -DskipTests=true package          # produces target/idea-pet-whale-0.0.1.jar + ...-plugin.zip
 mvn -B test                              # runs 20 unit tests
 mvn -B clean verify                      # full clean verify pipeline
 ```
@@ -45,7 +45,7 @@ mvn -B clean verify                      # full clean verify pipeline
 ## Install
 
 1. **Settings → Plugins → ⚙ → Install Plugin from Disk…**
-2. Pick `target/dsh-pet-whale-1.0.0-plugin.zip` (or your release build).
+2. Pick `target/idea-pet-whale-0.0.1-plugin.zip` (or your release build).
 3. Restart IDEA. The whale-girl appears at the bottom-right of the screen.
 
 ## Credits

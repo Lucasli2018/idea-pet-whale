@@ -1,29 +1,29 @@
-# SMOKE-CHECKLIST — dsh-pet-whale v1.0.0
+# SMOKE-CHECKLIST — idea-pet-whale v0.0.1
 
 Run after every build. Each step is a single human-verifiable action.
 
 ## 0. Build artifacts present
 
 ```sh
-ls -lh target/dsh-pet-whale-1.0.0.jar target/dsh-pet-whale-1.0.0-plugin.zip
-# Expect both files; jar ~3.8MB, zip ~3.8MB
+ls -lh target/idea-pet-whale-0.0.1.jar target/idea-pet-whale-0.0.1-plugin.zip
+# Expect both files; jar ~4.2MB, zip ~4.2MB
 ```
 
 ## 1. Zip structure check
 
 ```sh
-unzip -l target/dsh-pet-whale-1.0.0-plugin.zip
+unzip -l target/idea-pet-whale-0.0.1-plugin.zip
 # Expect:
-#   dsh-pet-whale/
-#   dsh-pet-whale/lib/
-#   dsh-pet-whale/lib/dsh-pet-whale-1.0.0.jar
-#   dsh-pet-whale/README.md
+#   idea-pet-whale/
+#   idea-pet-whale/lib/
+#   idea-pet-whale/lib/idea-pet-whale-0.0.1.jar
+#   idea-pet-whale/README.md
 ```
 
 ## 2. plugin.xml at jar root
 
 ```sh
-unzip -p target/dsh-pet-whale-1.0.0.jar META-INF/plugin.xml | head -20
+unzip -p target/idea-pet-whale-0.0.1.jar META-INF/plugin.xml | head -20
 # Expect <idea-version since-build="231"/> and 3 extensions
 # (postStartupActivity, editorFactoryListener, applicationService)
 ```
@@ -31,7 +31,7 @@ unzip -p target/dsh-pet-whale-1.0.0.jar META-INF/plugin.xml | head -20
 ## 3. Images inside jar
 
 ```sh
-unzip -l target/dsh-pet-whale-1.0.0.jar | grep images
+unzip -l target/idea-pet-whale-0.0.1.jar | grep images
 # Expect 5 files: 2x pet.json, 2x spritesheet.webp, decoration.json, whale-frames.png
 ```
 
@@ -39,7 +39,8 @@ unzip -l target/dsh-pet-whale-1.0.0.jar | grep images
 
 ```sh
 mvn -B test
-# Expect: Tests run: 20, Failures: 0, Errors: 0, Skipped: 0
+# Expect: Tests run: 23, Failures: 0, Errors: 0, Skipped: 1
+# (Skipped 1 = PetResourcesTest.loadWhaleOrAssumeSkip 在 JDK 17 无 WebP codec 时 assumeAborting 跳过)
 ```
 
 ## 5. Install in a real IDEA

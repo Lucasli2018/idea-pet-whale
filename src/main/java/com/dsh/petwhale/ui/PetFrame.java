@@ -123,7 +123,7 @@ public final class PetFrame {
 
     /** 构造主桌宠窗口（在 EDT 上调用）。 */
     private void buildFrame() {
-        frame = new JFrame("DSH Pet Whale");
+        frame = new JFrame("Idea Pet Whale");
         frame.setUndecorated(true);
         frame.setAlwaysOnTop(true);
         // 全透明背景：让桌面背景透出来

@@ -48,7 +48,7 @@ public final class PetVcsListener implements VirtualFileListener {
     private final ScheduledExecutorService scheduler =
             new ScheduledThreadPoolExecutor(1, r -> {
                 // 守护线程：插件卸载时不需要显式关闭
-                Thread t = new Thread(r, "dsh-pet-whale-vcs-settler");
+                Thread t = new Thread(r, "idea-pet-whale-vcs-settler");
                 t.setDaemon(true);
                 return t;
             });

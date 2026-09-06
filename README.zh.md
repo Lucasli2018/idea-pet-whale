@@ -1,4 +1,4 @@
-# DSH Pet Whale — 鲸鱼娘桌宠（JetBrains IDEA 2023.1+）
+# Idea Pet Whale — 鲸鱼娘桌宠（JetBrains IDEA 2023.1+）
 
 > 把 [DSH Web 端的鲸鱼娘桌宠](https://github.com/zhu1090093659/dsh-web-ui/tree/main/packages/dsh-pet)
 > 移植到 JetBrains IDEA 平台。一只悬浮在屏幕右下角的桌面宠物，监听你的编辑器和 VCS 活动，
@@ -6,12 +6,12 @@
 
 <table>
   <tr>
-    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/idle.gif" alt="idle" /><br /><b>idle（空闲）</b></td>
-    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/running.gif" alt="running" /><br /><b>running（跑动）</b></td>
-    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/waving.gif" alt="waving" /><br /><b>waving（挥手）</b></td>
-    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/jumping.gif" alt="jumping" /><br /><b>jumping（跳跃）</b></td>
-    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/failed.gif" alt="failed" /><br /><b>failed（失败）</b></td>
-    <td align="center"><img src="https://gitee.com/li-luoqiang/dsh-pet-whale/raw/main/src/main/resources/images/whale/previews/review.gif" alt="review" /><br /><b>review（审视）</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/idea-pet-whale/raw/main/src/main/resources/images/whale/previews/idle.gif" alt="idle" /><br /><b>idle（空闲）</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/idea-pet-whale/raw/main/src/main/resources/images/whale/previews/running.gif" alt="running" /><br /><b>running（跑动）</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/idea-pet-whale/raw/main/src/main/resources/images/whale/previews/waving.gif" alt="waving" /><br /><b>waving（挥手）</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/idea-pet-whale/raw/main/src/main/resources/images/whale/previews/jumping.gif" alt="jumping" /><br /><b>jumping（跳跃）</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/idea-pet-whale/raw/main/src/main/resources/images/whale/previews/failed.gif" alt="failed" /><br /><b>failed（失败）</b></td>
+    <td align="center"><img src="https://gitee.com/li-luoqiang/idea-pet-whale/raw/main/src/main/resources/images/whale/previews/review.gif" alt="review" /><br /><b>review（审视）</b></td>
   </tr>
 </table>
 
@@ -76,31 +76,31 @@ idle     → idle
 ## 构建
 
 ```sh
-mvn -B -DskipTests=true package          # 产出 target/dsh-pet-whale-1.0.0.jar + ...-plugin.zip
+mvn -B -DskipTests=true package          # 产出 target/idea-pet-whale-0.0.1.jar + ...-plugin.zip
 mvn -B test                              # 运行 20 个单元测试
 mvn -B clean verify                      # 完整验证流水线
 ```
 
-打包后的 zip 结构（`target/dsh-pet-whale-1.0.0-plugin.zip`）：
+打包后的 zip 结构（`target/idea-pet-whale-0.0.1-plugin.zip`）：
 
 ```
-dsh-pet-whale/
+idea-pet-whale/
 ├── README.md
 ├── LICENSE
 └── lib/
-    └── dsh-pet-whale-1.0.0.jar     ← 内含 META-INF/plugin.xml + images/
+    └── idea-pet-whale-0.0.1.jar     ← 内含 META-INF/plugin.xml + images/
 ```
 
 ## 安装
 
 1. **Settings → Plugins → ⚙ → Install Plugin from Disk…**
-2. 选择 `target/dsh-pet-whale-1.0.0-plugin.zip`（或你的发布产物）。
+2. 选择 `target/idea-pet-whale-0.0.1-plugin.zip`（或你的发布产物）。
 4. 重启 IDEA。鲸鱼娘会出现在屏幕右下角，开始她的空闲动画。
 
 ## 仓库结构
 
 ```
-dsh-pet-whale/
+idea-pet-whale/
 ├── pom.xml                                      # Maven 17 + 平台 231
 ├── src/assembly/plugin-distribution.xml         # zip 布局
 ├── src/main/resources/

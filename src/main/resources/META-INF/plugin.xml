@@ -1,6 +1,6 @@
-<idea-plugin url="https://github.com/zhu1090093659/dsh-pet-whale">
+<idea-plugin url="https://github.com/zhu1090093659/idea-pet-whale">
     <id>com.dsh.petwhale</id>
-    <name>DSH Pet Whale</name>
+    <name>Idea Pet Whale</name>
     <vendor email="dev@example.com" url="https://github.com/zhu1090093659">DSH</vendor>
 
     <idea-version since-build="231"/>
@@ -8,21 +8,21 @@
     <depends>com.intellij.modules.platform</depends>
 
     <description><![CDATA[
-        <h3>DSH Pet Whale — 鲸鱼娘桌宠</h3>
+        <h3>Idea Pet Whale — 鲸鱼娘桌宠</h3>
         <p>在 JetBrains IDEA 2023+ 中陪伴你写代码的鲸鱼娘。空闲时游动、编译时奔跑、测试全绿时跳跃庆祝、失败时沮丧。</p>
         <p>资源复用自 DSH 桌宠（@linxin666/dsh-pet）的鲸鱼娘主题（含原版 + 精致版两套）。</p>
     ]]></description>
 
     <change-notes><![CDATA[
-        <h4>1.0.1</h4>
+        <h4>0.0.1</h4>
         <ul>
-            <li>修复：启动时 PetFrame 抛 IllegalStateException（missing spritesheet at spritesheet.webp）。PetResources 现在按 manifest 所在目录解析 spritesheetPath，v2 契约下的相对路径能正确找到 classpath 资源。</li>
-            <li>新增 classpath 资源烟雾测试（PetResourcesTest.spriteSheetsAreResolvableOnClasspath），把"打包带资源"这条契约钉死，避免下次再漏。</li>
-            <li>新增 resolveSpritesheetPath 单元测试，覆盖相对路径/绝对路径/无目录前缀三种边界。</li>
+            <li>项目重命名：dsh-pet-whale → idea-pet-whale。版本号从 1.0.1 回退到 0.0.1 起算，后续每次升级 +0.0.1。</li>
+            <li>代码与资源全部继承自 dsh-pet-whale v1.0.1（含 v1.0.1 hotfix：PetResources 解析 v2 manifest 相对路径，23 测试全过）。</li>
         </ul>
-        <h4>1.0.0</h4>
+        <h4>迁移前历史（dsh-pet-whale）</h4>
         <ul>
-            <li>首个发布版：透明悬浮桌宠、9 状态动画、与编辑器/构建/VCS/测试事件联动、主题（原版/精致版）切换、拖拽定位、隐藏按钮。</li>
+            <li><b>1.0.1</b> 修复启动期 IllegalStateException missing spritesheet；新增 resolveSpritesheetPath + classpath 资源烟雾测试。</li>
+            <li><b>1.0.0</b> 首个发布版：透明悬浮桌宠、9 状态动画、与编辑器/构建/VCS/测试事件联动、主题（原版/精致版）切换、拖拽定位、隐藏按钮。</li>
         </ul>
     ]]></change-notes>
 

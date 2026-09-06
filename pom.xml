@@ -5,11 +5,11 @@
 
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.dsh</groupId>
-    <artifactId>dsh-pet-whale</artifactId>
-    <version>1.0.1</version>
+    <artifactId>idea-pet-whale</artifactId>
+    <version>0.0.1</version>
     <packaging>jar</packaging>
 
-    <name>DSH Pet Whale</name>
+    <name>Idea Pet Whale</name>
     <description>Whale-girl desktop pet for JetBrains IDEA 2023.1+ — animated by editor/build/test/VCS state. Compatible with IntelliJ IDEA 2023.1+ (since-build 231, runs on 2023.1 / 2023.3 / 2024.x / 2025.x).</description>
 
     <properties>
@@ -29,7 +29,7 @@
         <junit.version>5.10.2</junit.version>
 
         <!-- 插件分发包内的根目录名（IDEA 要求 zip 结构为 <根>/lib/*.jar），ASCII 避免跨平台编码 -->
-        <plugin.dist.dirName>dsh-pet-whale</plugin.dist.dirName>
+        <plugin.dist.dirName>idea-pet-whale</plugin.dist.dirName>
 
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
