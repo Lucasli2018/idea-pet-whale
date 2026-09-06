@@ -1,14 +1,15 @@
 <idea-plugin url="https://github.com/zhu1090093659/idea-pet-whale">
     <id>com.dsh.petwhale</id>
-    <name>Idea Pet Whale</name>
-    <vendor email="dev@example.com" url="https://github.com/zhu1090093659">DSH</vendor>
+    <name>Pet Whale</name>
+    <version>0.0.1</version>
+    <vendor email="1906859953@qq.com" url="https://github.com/Lucasli2018">lucasli</vendor>
 
     <idea-version since-build="231"/>
 
     <depends>com.intellij.modules.platform</depends>
 
     <description><![CDATA[
-        <h3>Idea Pet Whale — 鲸鱼娘桌宠</h3>
+        <h3>Idea Pet Whale — Whale Girl Desktop Pet</h3>
         <p>在 JetBrains IDEA 2023+ 中陪伴你写代码的鲸鱼娘。空闲时游动、编译时奔跑、测试全绿时跳跃庆祝、失败时沮丧。</p>
         <p>资源复用自 DSH 桌宠（@linxin666/dsh-pet）的鲸鱼娘主题（含原版 + 精致版两套）。</p>
     ]]></description>
