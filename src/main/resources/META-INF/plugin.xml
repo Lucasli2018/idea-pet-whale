@@ -1,7 +1,7 @@
 <idea-plugin url="https://github.com/zhu1090093659/idea-pet-whale">
     <id>com.dsh.petwhale</id>
     <name>Pet Whale</name>
-    <version>0.0.12</version>
+    <version>0.0.13</version>
     <vendor email="1906859953@qq.com" url="https://github.com/Lucasli2018">lucasli</vendor>
 
     <idea-version since-build="231"/>
@@ -15,6 +15,11 @@
     ]]></description>
 
     <change-notes><![CDATA[
+        <h4>0.0.13（按钮长度减半 + 修复鼠标停在按钮上悬浮层消失）</h4>
+        <ul>
+            <li><b>按钮长度缩短约 50%</b>：按钮卡片布局从 BoxLayout 换回 FlowLayout——此前 BoxLayout 会把按钮拉伸均分卡片宽度，现按文字实际大小排列。</li>
+            <li><b>修复鼠标停在按钮/数值上悬浮层消失</b>：Swing 中鼠标从面板移到子组件（按钮、标签、进度条）上也会触发面板的 mouseExited，被误判为"离开悬浮层"；现给悬浮层内所有子组件递归挂上同一悬停守卫，窗口内部任意移动都保持显示，完全移出才消失。</li>
+        </ul>
         <h4>0.0.12（修复卡片遮挡宠物脚部 + 按钮贴合文字 + 层间穿越宽容）</h4>
         <ul>
             <li><b>修复宠物被纵向拉伸</b>：绘制时高度参数误传为「基准Y+精灵高」，宠物实际被拉长约 28px、脚部超出预期底边，导致下方卡片压住裙摆；现按精灵高度绘制，宠物比例恢复，卡片精确贴在脚底下方、不再遮挡。</li>

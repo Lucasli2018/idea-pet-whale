@@ -180,24 +180,26 @@ public final class PetHoverPanel {
         statsWindow.setAlwaysOnTop(true);
         statsWindow.setBackground(new Color(0, 0, 0, 0));
         statsWindow.setContentPane(statsPanel);
-        statsPanel.addMouseListener(pillHoverListener());
 
         // === 按钮卡片（脚底下方，脚部区域触发） ===
         JPanel cardPanel = new PillPanel(CARD_PADDING);
-        cardPanel.setLayout(new BoxLayout(cardPanel, BoxLayout.X_AXIS));
+        // FlowLayout：按钮按文字实际大小排列（BoxLayout 会把按钮拉伸均分卡片宽度）
+        cardPanel.setLayout(new FlowLayout(FlowLayout.CENTER, BUTTON_GAP, 0));
         cardPanel.add(buildButton("喂食", this::onFeed));
-        cardPanel.add(Box.createHorizontalStrut(BUTTON_GAP));
         cardPanel.add(buildButton("改名", this::onRename));
-        cardPanel.add(Box.createHorizontalStrut(BUTTON_GAP));
         cardPanel.add(buildButton("设置", this::onOpenSettings));
-        cardPanel.add(Box.createHorizontalStrut(BUTTON_GAP));
         cardPanel.add(buildButton("隐藏", this::onHide));
 
         this.cardWindow = new JWindow();
         cardWindow.setAlwaysOnTop(true);
         cardWindow.setBackground(new Color(0, 0, 0, 0));
         cardWindow.setContentPane(cardPanel);
-        cardPanel.addMouseListener(pillHoverListener());
+
+        // === 悬停守卫：面板与其所有子组件（按钮/标签/进度条）都挂同一监听 ===
+        // Swing 中鼠标从面板移到子组件上也会触发面板的 mouseExited，
+        // 只挂面板会导致"移到按钮上就被判定离开、悬浮层消失"。
+        attachHoverGuard(statsPanel);
+        attachHoverGuard(cardPanel);
 
         this.showTimer = new Timer(SHOW_DELAY_MS, e -> SwingUtilities.invokeLater(() -> {
             if (locked) {
@@ -214,23 +216,35 @@ public final class PetHoverPanel {
         hideTimer.setRepeats(false);
     }
 
-    /** 悬浮层通用 hover 监听：进入锁定，离开解锁并调度隐藏。 */
-    private MouseAdapter pillHoverListener() {
-        return new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                mouseInOverlay = true;
-                locked = true;
-                cancelHide();
-            }
+    /** 共享的悬停监听：进入锁定并取消隐藏，离开解锁并调度隐藏。 */
+    private final MouseAdapter overlayHoverListener = new MouseAdapter() {
+        @Override
+        public void mouseEntered(MouseEvent e) {
+            mouseInOverlay = true;
+            locked = true;
+            cancelHide();
+        }
 
-            @Override
-            public void mouseExited(MouseEvent e) {
-                mouseInOverlay = false;
-                locked = false;
-                scheduleHide();
+        @Override
+        public void mouseExited(MouseEvent e) {
+            mouseInOverlay = false;
+            locked = false;
+            scheduleHide();
+        }
+    };
+
+    /**
+     * 递归给组件树挂上悬停守卫：鼠标在悬浮层窗口内部任意跨组件移动
+     * （面板 ↔ 按钮 ↔ 标签 ↔ 进度条）都视为"仍在悬浮层内"，不会误调度隐藏。
+     * 事件时序上 exit(prev) 先于 enter(next)，最后一个事件总是 enter，状态收敛正确。
+     */
+    private void attachHoverGuard(JComponent comp) {
+        comp.addMouseListener(overlayHoverListener);
+        for (Component child : comp.getComponents()) {
+            if (child instanceof JComponent jc) {
+                attachHoverGuard(jc);
             }
-        };
+        }
     }
 
     /**
