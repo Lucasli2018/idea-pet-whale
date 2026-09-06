@@ -69,10 +69,14 @@ public final class PetHoverPanel {
     private static final int HIDE_DELAY_MS = 320;
     /** 胶囊内边距 */
     private static final Insets STATS_PADDING = new Insets(8, 12, 9, 12);
-    /** 卡片内边距 */
-    private static final Insets CARD_PADDING = new Insets(6, 10, 7, 10);
+    /** 卡片内边距（按钮已紧贴文字，卡片留白同步收紧） */
+    private static final Insets CARD_PADDING = new Insets(5, 8, 6, 8);
     /** 按钮间距 */
     private static final int BUTTON_GAP = 4;
+    /** 按钮文字两侧的固定留白（紧紧包裹文字即可） */
+    private static final int BTN_PAD_X = 6;
+    /** 按钮文字上下的固定留白 */
+    private static final int BTN_PAD_Y = 2;
     /** 进度条尺寸 */
     private static final Dimension BAR_SIZE = new Dimension(110, 7);
 
@@ -544,15 +548,19 @@ public final class PetHoverPanel {
     }
 
     /**
-     * 深蓝底白字圆角按钮（参考设计图配色），大小紧贴文字，悬停提亮。
+     * 深蓝渐变底白字圆角按钮，尺寸<b>严格按文字宽高计算</b>（覆盖
+     * {@link #getPreferredSize()}，只留固定小留白，紧紧包裹文字），
+     * 悬停提亮、按下压暗。
      */
     private static final class FlatButton extends JButton {
         private boolean hovering;
+        private boolean pressed;
 
         FlatButton(String text) {
             super(text);
             setFocusPainted(false);
-            setBorder(BorderFactory.createEmptyBorder(2, 7, 2, 7));
+            setBorder(BorderFactory.createEmptyBorder(BTN_PAD_Y, BTN_PAD_X, BTN_PAD_Y, BTN_PAD_X));
+            setMargin(new Insets(0, 0, 0, 0));
             setContentAreaFilled(false);
             setOpaque(false);
             setForeground(BTN_TEXT);
@@ -567,9 +575,41 @@ public final class PetHoverPanel {
                 @Override
                 public void mouseExited(MouseEvent e) {
                     hovering = false;
+                    pressed = false;
+                    repaint();
+                }
+
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    pressed = true;
+                    repaint();
+                }
+
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    pressed = false;
                     repaint();
                 }
             });
+        }
+
+        /** 尺寸 = 文本实际宽高 + 固定小留白，不受平台默认边距影响。 */
+        @Override
+        public Dimension getPreferredSize() {
+            FontMetrics fm = getFontMetrics(getFont());
+            return new Dimension(
+                    fm.stringWidth(getText()) + BTN_PAD_X * 2,
+                    fm.getHeight() + BTN_PAD_Y * 2);
+        }
+
+        @Override
+        public Dimension getMinimumSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public Dimension getMaximumSize() {
+            return getPreferredSize();
         }
 
         @Override
@@ -577,13 +617,16 @@ public final class PetHoverPanel {
             Graphics2D g2 = (Graphics2D) g.create();
             try {
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(hovering ? BTN_HOVER : BTN_BG);
-                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
+                int h = getHeight();
+                Color top = hovering ? BTN_HOVER : BTN_BG;
+                Color bottom = pressed ? BTN_BG : hovering ? new Color(86, 104, 204) : new Color(58, 72, 148);
+                g2.setPaint(new GradientPaint(0, 0, top, 0, h, bottom));
+                g2.fillRoundRect(0, 0, getWidth() - 1, h - 1, 9, 9);
                 g2.setColor(getForeground());
                 FontMetrics fm = g2.getFontMetrics();
                 String txt = getText();
                 int tx = (getWidth() - fm.stringWidth(txt)) / 2;
-                int ty = (getHeight() + fm.getAscent() - fm.getDescent()) / 2;
+                int ty = (h + fm.getAscent() - fm.getDescent()) / 2;
                 g2.drawString(txt, tx, ty);
             } finally {
                 g2.dispose();
