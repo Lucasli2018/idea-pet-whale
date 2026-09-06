@@ -56,6 +56,28 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
     /** 久坐关怀提醒（连续编码 60 分钟提醒喝水/起身），默认开启 */
     private boolean careEnabled = true;
 
+    /** 宠物档案：名字（默认"鲸鱼娘"） */
+    @NotNull private String petName = DEFAULT_PET_NAME;
+    /** 宠物档案：亲密度 */
+    private int intimacy = DEFAULT_INTIMACY;
+    /** 宠物档案：小鱼干库存 */
+    private int fishCount = DEFAULT_FISH_COUNT;
+    /** 宠物档案：累计点数 */
+    private int points = DEFAULT_POINTS;
+
+    /** 默认宠物名 */
+    public static final String DEFAULT_PET_NAME = "鲸鱼娘";
+    /** 默认亲密度 */
+    public static final int DEFAULT_INTIMACY = 0;
+    /** 默认小鱼干数量 */
+    public static final int DEFAULT_FISH_COUNT = 20;
+    /** 默认点数 */
+    public static final int DEFAULT_POINTS = 0;
+    /** 亲密度单次喂食增量 */
+    public static final int FEED_INTIMACY_BONUS = 10;
+    /** 点数单次喂食增量 */
+    public static final int FEED_POINTS_BONUS = 5;
+
     /** 缩放比例（百分比，已 clamp 到 [{@link #MIN_SIZE_PERCENT}, {@link #MAX_SIZE_PERCENT}]）。 */
     public int getSizePercent() { return sizePercent; }
 
@@ -96,6 +118,47 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
     public boolean isCareEnabled() { return careEnabled; }
 
     public void setCareEnabled(boolean value) { this.careEnabled = value; }
+
+    /** 宠物名字。 */
+    @NotNull public String getPetName() { return petName; }
+
+    public void setPetName(@Nullable String name) {
+        this.petName = (name == null || name.isBlank()) ? DEFAULT_PET_NAME : name.trim();
+    }
+
+    /** 亲密度。 */
+    public int getIntimacy() { return intimacy; }
+
+    public void setIntimacy(int value) { this.intimacy = Math.max(0, value); }
+
+    /** 小鱼干数量。 */
+    public int getFishCount() { return fishCount; }
+
+    public void setFishCount(int value) { this.fishCount = Math.max(0, value); }
+
+    /** 累计点数。 */
+    public int getPoints() { return points; }
+
+    public void setPoints(int value) { this.points = Math.max(0, value); }
+
+    /** 尝试投喂一条小鱼干：有库存时扣减并增加亲密度/点数，返回是否成功。 */
+    public boolean feedOne() {
+        if (fishCount <= 0) return false;
+        fishCount--;
+        intimacy += FEED_INTIMACY_BONUS;
+        points += FEED_POINTS_BONUS;
+        return true;
+    }
+
+    /** 把亲密度换算成等级称号。 */
+    @NotNull
+    public static String intimacyTitle(int intimacy) {
+        if (intimacy < 100) return "素昧平生";
+        if (intimacy < 300) return "一见如故";
+        if (intimacy < 600) return "心意相通";
+        if (intimacy < 1000) return "心有灵犀";
+        return "灵魂伴侣";
+    }
 
     /** 把持久化的主题名解析回枚举；未知值安全回退到 {@link PetTheme#WHALE}。 */
     @NotNull public PetTheme theme() {
@@ -164,5 +227,9 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
         setThemeName(state.themeName);
         this.startHidden = state.startHidden;
         this.careEnabled = state.careEnabled;
+        setPetName(state.petName);
+        this.intimacy = Math.max(0, state.intimacy);
+        this.fishCount = Math.max(0, state.fishCount);
+        this.points = Math.max(0, state.points);
     }
 }

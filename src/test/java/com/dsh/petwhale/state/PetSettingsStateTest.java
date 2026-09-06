@@ -145,6 +145,59 @@ public class PetSettingsStateTest {
         assertEquals(PetSettingsState.DEFAULT_OPACITY_PERCENT, state.getOpacityPercent());
         assertEquals(PetTheme.WHALE, state.theme());
         assertFalse(state.isStartHidden());
+        assertEquals(PetSettingsState.DEFAULT_PET_NAME, state.getPetName());
+        assertEquals(PetSettingsState.DEFAULT_INTIMACY, state.getIntimacy());
+        assertEquals(PetSettingsState.DEFAULT_FISH_COUNT, state.getFishCount());
+        assertEquals(PetSettingsState.DEFAULT_POINTS, state.getPoints());
+    }
+
+    @Test
+    public void petProfile_setterNormalizes() {
+        PetSettingsState state = new PetSettingsState();
+        state.setPetName("  露露  ");
+        assertEquals("露露", state.getPetName());
+        state.setPetName(null);
+        assertEquals(PetSettingsState.DEFAULT_PET_NAME, state.getPetName());
+        state.setPetName("  ");
+        assertEquals(PetSettingsState.DEFAULT_PET_NAME, state.getPetName());
+
+        state.setIntimacy(-10);
+        assertEquals(0, state.getIntimacy());
+        state.setFishCount(-5);
+        assertEquals(0, state.getFishCount());
+        state.setPoints(-1);
+        assertEquals(0, state.getPoints());
+    }
+
+    @Test
+    public void feedOne_consumesFishAndBoostsStats() {
+        PetSettingsState state = new PetSettingsState();
+        assertTrue(state.feedOne());
+        assertEquals(PetSettingsState.DEFAULT_FISH_COUNT - 1, state.getFishCount());
+        assertEquals(PetSettingsState.FEED_INTIMACY_BONUS, state.getIntimacy());
+        assertEquals(PetSettingsState.FEED_POINTS_BONUS, state.getPoints());
+    }
+
+    @Test
+    public void feedOne_emptyStock_returnsFalse() {
+        PetSettingsState state = new PetSettingsState();
+        state.setFishCount(0);
+        assertFalse(state.feedOne());
+        assertEquals(0, state.getIntimacy());
+    }
+
+    @Test
+    public void intimacyTitle_tiersMatch() {
+        assertEquals("素昧平生", PetSettingsState.intimacyTitle(0));
+        assertEquals("素昧平生", PetSettingsState.intimacyTitle(99));
+        assertEquals("一见如故", PetSettingsState.intimacyTitle(100));
+        assertEquals("一见如故", PetSettingsState.intimacyTitle(299));
+        assertEquals("心意相通", PetSettingsState.intimacyTitle(300));
+        assertEquals("心意相通", PetSettingsState.intimacyTitle(599));
+        assertEquals("心有灵犀", PetSettingsState.intimacyTitle(600));
+        assertEquals("心有灵犀", PetSettingsState.intimacyTitle(999));
+        assertEquals("灵魂伴侣", PetSettingsState.intimacyTitle(1000));
+        assertEquals("灵魂伴侣", PetSettingsState.intimacyTitle(2000));
     }
 
     // === loadState 脏数据收敛 ===
@@ -157,6 +210,10 @@ public class PetSettingsStateTest {
         dirty.setThemeName("bogus");
         dirty.setStartHidden(true);
         dirty.setWindowLocation(88, 66);
+        dirty.setPetName("露露");
+        dirty.setIntimacy(341);
+        dirty.setFishCount(20);
+        dirty.setPoints(1200);
 
         PetSettingsState target = new PetSettingsState();
         target.loadState(dirty);
@@ -167,5 +224,24 @@ public class PetSettingsStateTest {
         assertTrue(target.isStartHidden());
         assertEquals(88, target.getX());
         assertEquals(66, target.getY());
+        assertEquals("露露", target.getPetName());
+        assertEquals(341, target.getIntimacy());
+        assertEquals(20, target.getFishCount());
+        assertEquals(1200, target.getPoints());
+    }
+
+    @Test
+    public void loadState_negativeProfile_clampedToZero() {
+        PetSettingsState dirty = new PetSettingsState();
+        dirty.setIntimacy(-50);
+        dirty.setFishCount(-1);
+        dirty.setPoints(-999);
+
+        PetSettingsState target = new PetSettingsState();
+        target.loadState(dirty);
+
+        assertEquals(0, target.getIntimacy());
+        assertEquals(0, target.getFishCount());
+        assertEquals(0, target.getPoints());
     }
 }

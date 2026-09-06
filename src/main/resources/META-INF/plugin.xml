@@ -1,7 +1,7 @@
 <idea-plugin url="https://github.com/zhu1090093659/idea-pet-whale">
     <id>com.dsh.petwhale</id>
     <name>Pet Whale</name>
-    <version>0.0.4</version>
+    <version>0.0.5</version>
     <vendor email="1906859953@qq.com" url="https://github.com/Lucasli2018">lucasli</vendor>
 
     <idea-version since-build="231"/>
@@ -15,6 +15,13 @@
     ]]></description>
 
     <change-notes><![CDATA[
+        <h4>0.0.5（悬停交互面板 + 跳跃动画修复 + 宠物档案）</h4>
+        <ul>
+            <li><b>悬停交互面板</b>：鼠标滑过鲸鱼娘时，下方浮现圆角深色卡片，显示名字、亲密度等级、小鱼干、点数；支持"喂食 / 改名 / 隐藏"三个快捷按钮。面板与宠物本体通过进入/离开延迟计时器实现平滑过渡。</li>
+            <li><b>宠物档案</b>：新增 persisted 宠物档案（名字、亲密度、小鱼干、点数）。喂食消耗小鱼干并增加亲密度/点数；亲密度达到不同阶段显示对应称号（素昧平生 → 灵魂伴侣）。</li>
+            <li><b>跳跃动画真正跳起来</b>：窗口上下扩展跳跃缓冲，绘制 JUMPING 时按帧叠加 anticipation → 跃起 → 落地的垂直偏移，避免被窗口顶部裁切。</li>
+            <li>点击宠物时自动收起悬停面板，避免面板遮挡点击反馈。</li>
+        </ul>
         <h4>0.0.4（P1 收尾 + 久坐关怀 + 交互瘦身）</h4>
         <ul>
             <li><b>移除右键悬浮面板</b>：右键不再弹出"鲸鱼娘"面板（含其设置入口）；隐藏/显示统一走设置页（Settings → Tools → Pet Whale 鲸鱼娘）的按钮。</li>

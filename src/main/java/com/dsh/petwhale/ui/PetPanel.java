@@ -13,6 +13,7 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.event.MouseAdapter;
@@ -22,14 +23,15 @@ import java.awt.image.BufferedImage;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 桌宠主绘图面板：按帧绘制当前动画 + 推进内部帧索引。
+ * 桌宠主绘图面板：按帧绘制当前动画 + 推进内部帧索引 + 鼠标悬停交互。
  *
  * <p><b>职责：</b>
  * <ol>
  *   <li>每 100ms 从 {@link PetStateService} 拉一次快照，决定当前该播哪个动画</li>
  *   <li>按 {@link PetManifest#durations} 的帧时长推进内部帧索引，到尾部就回到 0</li>
  *   <li>在 EDT 上调用 {@code repaint()} 触发 {@link #paintComponent} 重绘</li>
- *   <li>处理鼠标拖拽（修改 PetFrame 的位置）和右键唤起悬停面板</li>
+ *   <li>处理鼠标拖拽（修改 PetFrame 的位置）、点击交互、悬停浮现交互面板</li>
+ *   <li>对 {@link PetAnimation#JUMPING} 叠加垂直弹跳偏移，让庆祝动画真正"跳起来"</li>
  * </ol>
  *
  * <p><b>线程模型：</b>所有 Swing 操作都强制走 {@link SwingUtilities#invokeLater}，
@@ -38,12 +40,17 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * <p><b>透明背景：</b>{@code setOpaque(false)} 让 JPanel 不绘制自身背景，
  * 桌宠窗口的透明区才能透出桌面。</p>
+ *
+ * <p><b>跳跃缓冲：</b>窗口在宠物上下各扩展 {@value #JUMP_ROOM} 像素（按缩放比例缩放），
+ * 平时宠物居中绘制，跳跃时向上偏移而不被窗口顶部裁切。</p>
  */
 public final class PetPanel extends JPanel {
 
+    /** 跳跃缓冲高度（100% 缩放时），给跳跃动作留出头部空间 */
+    public static final int JUMP_ROOM = 28;
+    /** 当前主题（精灵图 + 帧数据） */
     private final PetStateService service;
     private final PetFrame frame;
-    /** 当前主题（精灵图 + 帧数据） */
     private final AtomicReference<PetResources.Theme> themeRef = new AtomicReference<>();
     /** 当前正在播放的动画 */
     private final AtomicReference<PetAnimation> currentAnimation =
@@ -78,23 +85,19 @@ public final class PetPanel extends JPanel {
         this.service = service;
         this.frame = frame;
         setOpaque(false);
-        setSize(PetManifest.CELL_WIDTH, PetManifest.CELL_HEIGHT);
+        setPreferredSize(preferredPetSize(100));
 
         // === 主题切换即时刷新 ===
-        // 之前只在动画切换时顺带刷新主题资源，长时间停在 idle 时切主题"看起来没生效"。
-        // 现在订阅 theme-switch 广播：立刻换精灵图 + 时长表，重置帧序并重绘。
         this.themeListener = (snapshot, reason) -> {
             if (!"theme-switch".equals(reason)) return;
             SwingUtilities.invokeLater(this::refreshThemeResources);
         };
         service.addListener(themeListener);
 
-        // === 拖拽支持 + 点击交互 ===
-        // 按下记录偏移，拖动时把整个 Frame 跟着鼠标移动
+        // === 拖拽支持 + 点击交互 + 悬停交互 ===
         MouseAdapter press = new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                // 记录按下点：拖动偏移 = 鼠标当前坐标 - 按下点坐标
                 pressX = e.getX();
                 pressY = e.getY();
                 draggedSincePress = false;
@@ -103,25 +106,29 @@ public final class PetPanel extends JPanel {
             @Override
             public void mouseReleased(MouseEvent e) {
                 if (e.isPopupTrigger()) {
-                    // 右键菜单已移除：只保存位置，不触发点击交互
                     frame.savePosition();
                 } else if (!draggedSincePress) {
-                    // 按下→松手之间没有明显拖动 = 点击交互
                     handleClick();
                 }
-                // 松手 = 拖拽（或点击）结束，把最新位置持久化
                 frame.savePosition();
                 pressX = -1;
                 pressY = -1;
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                frame.showHoverPanel();
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                frame.hideHoverPanel();
             }
         };
         MouseMotionAdapter drag = new MouseMotionAdapter() {
             @Override
             public void mouseDragged(MouseEvent e) {
-                if (pressX < 0 || pressY < 0) {
-                    // 没有按下记录（异常事件序列），跳过本次拖动
-                    return;
-                }
+                if (pressX < 0 || pressY < 0) return;
                 java.awt.Point p = frame.getLocation();
                 frame.setLocation(
                         p.x + e.getX() - pressX,
@@ -133,13 +140,11 @@ public final class PetPanel extends JPanel {
         addMouseMotionListener(drag);
 
         // === 帧推进定时器 ===
-        // 每 100ms 重新决策当前动画、推进帧索引、触发重绘
         Timer advance = new Timer(100, e -> {
             long now = System.currentTimeMillis();
             PetStateSnapshot snapshot = service.render();
             PetAnimation desired = snapshot.animation();
 
-            // 动画变了：重置帧索引 + 加载新时长表 + 同步主题资源 + 事件台词
             if (desired != currentAnimation.get()) {
                 PetAnimation previous = currentAnimation.get();
                 currentAnimation.set(desired);
@@ -151,7 +156,6 @@ public final class PetPanel extends JPanel {
                 showEventLineIfNeeded(previous, desired, now);
             }
 
-            // 推进帧索引：累计时长够了就前进
             long[] durations = currentDurations.get();
             if (durations.length > 0) {
                 int elapsed = (int) (now - frameStartedAt);
@@ -162,20 +166,17 @@ public final class PetPanel extends JPanel {
                     idx++;
                 }
                 if (idx >= durations.length) {
-                    // 走完一轮，重置回起点（循环播放）
                     frameIndex = 0;
                     frameStartedAt = now;
                 } else if (idx != frameIndex) {
                     frameIndex = idx;
                 }
             }
-            // EDT 上触发重绘
             SwingUtilities.invokeLater(PetPanel.this::repaint);
         });
         advance.start();
 
         // === 久坐关怀定时器 ===
-        // 每 60 秒检查一次连续活跃时长，满阈值冒关怀台词气泡（可在设置关闭）
         Timer careTimer = new Timer(60_000, e -> {
             boolean enabled = careEnabled();
             if (service.care().shouldRemind(System.currentTimeMillis(), enabled)) {
@@ -184,9 +185,29 @@ public final class PetPanel extends JPanel {
         });
         careTimer.start();
 
-        // 初始化：把当前主题/时长表装好
         themeRef.set(service.currentTheme());
         currentDurations.set(initialDurations());
+    }
+
+    /**
+     * 带跳跃缓冲的宠物窗口首选尺寸。
+     * 宽度 = 精灵宽度 × 缩放；高度 = 精灵高度 × 缩放 + 上下各 {@value #JUMP_ROOM}。
+     */
+    @NotNull
+    public static Dimension preferredPetSize(int sizePercent) {
+        int w = PetSettingsState.scaledWidth(sizePercent);
+        int h = PetSettingsState.scaledHeight(sizePercent) + scaledJumpRoom(sizePercent) * 2;
+        return new Dimension(w, h);
+    }
+
+    /** 按当前缩放比例计算跳跃缓冲高度。 */
+    public static int scaledJumpRoom(int sizePercent) {
+        return Math.max(1, JUMP_ROOM * PetSettingsState.clampSizePercent(sizePercent) / 100);
+    }
+
+    /** 宠物精灵在面板内的基准 Y 坐标（顶部留出一半缓冲）。 */
+    public static int petBaseY(int sizePercent) {
+        return scaledJumpRoom(sizePercent);
     }
 
     /** 读"久坐关怀"开关；设置服务不可用时默认开启。 */
@@ -203,11 +224,6 @@ public final class PetPanel extends JPanel {
         }
     }
 
-    /**
-     * 动画切换时的事件台词：切换到 JUMPING → done 组、FAILED → failed 组。
-     * 点击触发的切换（{@value #EVENT_LINE_SUPPRESS_MS}ms 内）由 handleClick 自己冒台词，
-     * 这里跳过，避免同一动作冒两个气泡。
-     */
     private void showEventLineIfNeeded(PetAnimation previous, PetAnimation desired, long now) {
         if (now - lastClickAt <= EVENT_LINE_SUPPRESS_MS) return;
         if (desired == PetAnimation.JUMPING && previous != PetAnimation.JUMPING) {
@@ -217,10 +233,6 @@ public final class PetPanel extends JPanel {
         }
     }
 
-    /**
-     * 主题切换后的资源刷新：换精灵图帧序列 + 换时长表 + 重置帧序 + 立即重绘。
-     * EDT 上调用（themeListener 已切）。
-     */
     private void refreshThemeResources() {
         PetAnimation animation = currentAnimation.get();
         themeRef.set(service.currentTheme());
@@ -230,24 +242,16 @@ public final class PetPanel extends JPanel {
         repaint();
     }
 
-    /** 注销监听（PetFrame.dispose 时调用，防止插件重载后泄漏）。 */
     public void shutdown() {
         service.removeListener(themeListener);
     }
 
-    /** 构造时的初始时长表（用当前动画 = IDLE 算）。 */
     private long[] initialDurations() {
         PetAnimation animation = currentAnimation.get();
         int row = PetResources.rowOf(animation);
         return safeDurations(service.currentTheme(), animation, row);
     }
 
-    /**
-     * 安全地拿动画的帧时长：
-     * 1. 优先用 manifest 里 tracks[anim].durations；
-     * 2. 若空，用 defaultDurationsForRow（按 idle 节奏兜底）；
-     * 3. 任何异常都返回单帧 500ms，避免卡死。
-     */
     private static long[] safeDurations(PetResources.Theme theme, PetAnimation animation, int row) {
         try {
             int[] track = theme.manifest().durations(animation);
@@ -264,22 +268,12 @@ public final class PetPanel extends JPanel {
         }
     }
 
-    /** int[] 转 long[]（避免 32 位 int 毫秒累加溢出）。 */
     private static long[] toLongArray(int[] arr) {
         long[] out = new long[arr.length];
         for (int i = 0; i < arr.length; i++) out[i] = arr[i];
         return out;
     }
 
-    /**
-     * 点击交互（EDT 上调用）：
-     * <ul>
-     *   <li>单击 → {@code DONE}（跳跃庆祝动画）+ 随机台词气泡</li>
-     *   <li>{@value #RAPID_CLICK_WINDOW_MS}ms 内连点 ≥ {@value #RAPID_CLICK_THRESHOLD} 次
-     *       → {@code FAILED}（撒娇沮丧动画）+ 撒娇台词，连点计数清零</li>
-     * </ul>
-     * 台词库缺失时只切动画不冒气泡，交互永不抛异常。
-     */
     private void handleClick() {
         long now = System.currentTimeMillis();
         lastClickAt = now;
@@ -287,6 +281,9 @@ public final class PetPanel extends JPanel {
             clickTimes.pollFirst();
         }
         clickTimes.addLast(now);
+
+        // 点击时先收起悬停面板，避免面板遮挡点击反馈
+        frame.hideHoverPanel();
 
         if (clickTimes.size() >= RAPID_CLICK_THRESHOLD) {
             clickTimes.clear();
@@ -299,18 +296,40 @@ public final class PetPanel extends JPanel {
     }
 
     /**
+     * 计算跳跃动画的垂直偏移（像素，已按当前缩放比例缩放）。
+     * 使用经典的 anticipation → 跃起 → 落地曲线：
+     * <pre>
+     *   帧 0: 0        （待机预备）
+     *   帧 1: -0.4h    （蹬地屈膝后的最低点，anticipation）
+     *   帧 2: -1.0h    （最高点）
+     *   帧 3: -0.5h    （下落中）
+     *   帧 4: 0        （落地）
+     * </pre>
+     * 其中 h = JUMP_ROOM，保证最高点刚好用到全部头部缓冲而不裁切。
+     */
+    private int jumpYOffset(int sizePercent) {
+        if (currentAnimation.get() != PetAnimation.JUMPING) return 0;
+        int room = scaledJumpRoom(sizePercent);
+        switch (frameIndex) {
+            case 0: return 0;
+            case 1: return (int) Math.round(-0.40 * room);
+            case 2: return -room;
+            case 3: return (int) Math.round(-0.50 * room);
+            case 4: return 0;
+            default: return 0;
+        }
+    }
+
+    /**
      * Swing 在 EDT 上回调的绘制方法。
-     * 先用 {@link java.awt.Composite#Clear} 整面擦除到全透明（防止上一帧精灵图
-     * 残留在透明窗体上形成"重影"），再按当前面板尺寸缩放绘制当前帧。
-     * 任何异常都走 finally 释放 Graphics2D 资源，避免泄漏。
+     * 先用 {@link java.awt.Composite#Clear} 整面擦除到全透明，再按当前面板尺寸缩放
+     * 绘制当前帧；跳跃动画会在基准 Y 上叠加弹跳偏移。
      */
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g.create();
         try {
-            // 整面清屏到全透明：非 opaque 面板的 super.paintComponent 不会清像素，
-            // 不主动擦除的话旧帧会一直叠在新帧上
             g2.setComposite(java.awt.AlphaComposite.Clear);
             g2.fillRect(0, 0, getWidth(), getHeight());
             g2.setComposite(java.awt.AlphaComposite.SrcOver);
@@ -320,8 +339,14 @@ public final class PetPanel extends JPanel {
             BufferedImage[] frames = theme.framesFor(currentAnimation.get());
             if (frames.length == 0) return;
             int idx = Math.min(frameIndex, frames.length - 1);
-            // 缩放绘制：面板尺寸即目标尺寸（PetFrame 按设置的比例 setSize）
-            g2.drawImage(frames[idx], 0, 0, getWidth(), getHeight(), null);
+
+            int sizePercent = frame.currentSizePercent();
+            int baseY = petBaseY(sizePercent);
+            int y = baseY + jumpYOffset(sizePercent);
+            int spriteH = PetSettingsState.scaledHeight(sizePercent);
+            int spriteW = PetSettingsState.scaledWidth(sizePercent);
+            // 缩放绘制到精灵尺寸（而非填满整个窗口高度，窗口额外高度是缓冲）
+            g2.drawImage(frames[idx], 0, y, spriteW, y + spriteH, null);
         } finally {
             g2.dispose();
         }
