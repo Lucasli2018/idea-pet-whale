@@ -94,8 +94,12 @@ public final class PetPanel extends JPanel {
     private long overrideUntil = 0;
     /** 双击判定窗口（毫秒） */
     static final int DOUBLE_CLICK_WINDOW_MS = 400;
-    /** 自动溜达：每帧移动像素 */
-    private static final int ROAM_SPEED = 4;
+    /**
+     * 自动溜达：每个移动 tick（{@link #ROAM_TICK_MS}）推进的像素数。
+     * 40ms × 5px ≈ 125px/s，约 0.65 倍自身宽度/秒，属轻快小跑；
+     * 想要更慢更悠闲就调小（如 3），更风风火火就调大（如 7）。
+     */
+    private static final int ROAM_SPEED = 5;
     /** 自动溜达：移动定时器间隔（毫秒） */
     private static final int ROAM_TICK_MS = 40;
     /** 是否正在自动溜达 */
@@ -252,7 +256,7 @@ public final class PetPanel extends JPanel {
         idleTimer.start();
 
         // === 自动溜达定时器：随机间隔后让鲸鱼娘在屏幕上自由左右跑动 ===
-        nextRoamAt = System.currentTimeMillis() + randomBetween(4000, 10000);
+        nextRoamAt = System.currentTimeMillis() + randomBetween(3000, 7000);
         Timer roamTimer = new Timer(ROAM_TICK_MS, e -> tickRoam());
         roamTimer.start();
 
@@ -458,12 +462,14 @@ public final class PetPanel extends JPanel {
                 return;
             }
             PetAnimation want = roamDir > 0 ? PetAnimation.RUNNING_RIGHT : PetAnimation.RUNNING_LEFT;
-            if (overrideAnimation != want) setRoamAnim(want);
+            // 仅当方向真的变化时才换镜像，且保留当前帧进度（setRoamDirection 不重置帧），
+            // 撞墙转身时腿部动作连续、不跳回第 0 帧
+            if (overrideAnimation != want) setRoamDirection(want);
             moveStep();
             if (now >= roamUntil) stopRoamInternal();
         } else if (now >= nextRoamAt) {
             if (canRoam) startRoam(now);
-            else nextRoamAt = now + randomBetween(4000, 10000);
+            else nextRoamAt = now + randomBetween(3000, 7000);
         }
     }
 
@@ -471,7 +477,7 @@ public final class PetPanel extends JPanel {
     private void startRoam(long now) {
         roaming = true;
         roamDir = randomSign();
-        roamUntil = now + randomBetween(2500, 5500);
+        roamUntil = now + randomBetween(3000, 6000);
         setRoamAnim(roamDir > 0 ? PetAnimation.RUNNING_RIGHT : PetAnimation.RUNNING_LEFT);
     }
 
@@ -484,6 +490,19 @@ public final class PetPanel extends JPanel {
         frameStartedAt = System.currentTimeMillis();
         themeRef.set(service.currentTheme());
         currentDurations.set(safeDurations(service.currentTheme(), anim, PetResources.rowOf(anim)));
+        repaint();
+    }
+
+    /**
+     * 仅在溜达途中切换奔跑方向（左跑↔右跑镜像），不重置帧索引与计时。
+     * 两方向的帧序列与时长完全一致，可安全共用当前帧进度，
+     * 从而让撞墙转身时腿部动作连续、无跳变，行走更流畅完整。
+     */
+    private void setRoamDirection(PetAnimation anim) {
+        overrideAnimation = anim;
+        overrideUntil = Long.MAX_VALUE;
+        currentAnimation.set(anim);
+        themeRef.set(service.currentTheme());
         repaint();
     }
 
@@ -509,7 +528,7 @@ public final class PetPanel extends JPanel {
         roaming = false;
         overrideAnimation = null;
         overrideUntil = 0;
-        nextRoamAt = System.currentTimeMillis() + randomBetween(5000, 12000);
+        nextRoamAt = System.currentTimeMillis() + randomBetween(4000, 9000);
     }
 
     /** 外部（拖拽 / 回原位）调用的停止入口：立即停跑并延后下次溜达。 */
@@ -517,7 +536,7 @@ public final class PetPanel extends JPanel {
         roaming = false;
         overrideAnimation = null;
         overrideUntil = 0;
-        nextRoamAt = System.currentTimeMillis() + randomBetween(8000, 18000);
+        nextRoamAt = System.currentTimeMillis() + randomBetween(6000, 14000);
     }
 
     private static int randomBetween(int lo, int hi) {

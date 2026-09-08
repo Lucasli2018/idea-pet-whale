@@ -41,8 +41,8 @@ public final class PetManifest {
         // 空闲呼吸：6 帧，每帧约 500-600ms，整体循环约 3 秒
         map.put(PetAnimation.IDLE,          new int[] { 500, 500, 600, 500, 500, 600 });
         // 左右跑动：8 帧，每帧约 300-400ms，节奏感更强
-        map.put(PetAnimation.RUNNING_RIGHT, new int[] { 300, 300, 300, 300, 300, 300, 300, 400 });
-        map.put(PetAnimation.RUNNING_LEFT,  new int[] { 300, 300, 300, 300, 300, 300, 300, 400 });
+        map.put(PetAnimation.RUNNING_RIGHT, new int[] { 300, 300, 300, 300, 300, 300, 300, 300 });
+        map.put(PetAnimation.RUNNING_LEFT,  new int[] { 300, 300, 300, 300, 300, 300, 300, 300 });
         // 挥手：4 帧，约 1.8 秒一个循环
         map.put(PetAnimation.WAVING,        new int[] { 450, 450, 450, 450 });
         // 跳跃：5 帧
