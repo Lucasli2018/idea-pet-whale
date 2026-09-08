@@ -15,9 +15,9 @@
     ]]></description>
 
     <change-notes><![CDATA[
-        <h4>0.0.16（新增精致鲸鱼娘插件图标 + 版本递增）</h4>
+        <h4>0.0.16（新增鲸鱼娘女仆装插件图标 + 版本递增）</h4>
         <ul>
-            <li><b>新增插件图标</b>：绘制精致鲸鱼娘头像（珊瑚橙主题，含双马尾、喷水鲸鱼特征与星星点缀），放置于 <code>META-INF/pluginIcon.svg</code>，在 IDE 设置列表与 JetBrains Marketplace 中展示。</li>
+            <li><b>新增插件图标</b>：基于领主大人提供的参考图重绘鲸鱼娘女仆装头像（深蓝波浪长发、白色女仆头饰、黑白女仆裙配围裙与鲸鱼胸徽、白丝袜），放置于 <code>META-INF/pluginIcon.svg</code>，在 IDE 设置列表与 JetBrains Marketplace 中展示。</li>
             <li>版本号递增 0.0.15 → 0.0.16。</li>
         </ul>
         <h4>0.0.15（溜达速度可调 + 行走手感与流畅度调优）</h4>
