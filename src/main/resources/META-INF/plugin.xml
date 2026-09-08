@@ -1,7 +1,7 @@
 <idea-plugin url="https://github.com/zhu1090093659/idea-pet-whale">
     <id>com.dsh.petwhale</id>
     <name>Pet Whale</name>
-    <version>0.0.16</version>
+    <version>0.0.17</version>
     <vendor email="1906859953@qq.com" url="https://github.com/Lucasli2018">lucasli</vendor>
 
     <idea-version since-build="231"/>
@@ -15,6 +15,11 @@
     ]]></description>
 
     <change-notes><![CDATA[
+        <h4>0.0.17（设置页精简：统一配色 + 去除冗余说明）</h4>
+        <ul>
+            <li><b>「精致版」配色与「原版」保持一致</b>：设置页卡片、强调色、恢复默认链接统一使用海洋蓝配色，切换宠物皮肤时不再跳变为珊瑚橙，视觉上更统一。</li>
+            <li><b>去除冗余文字说明</b>：各设置项仅保留标题，去掉下方的描述小字，显著减小设置页宽度与视觉噪音。</li>
+        </ul>
         <h4>0.0.16（新增鲸鱼娘女仆装插件图标 + 版本递增）</h4>
         <ul>
             <li><b>新增插件图标</b>：基于领主大人提供的参考图<b>一比一重绘</b>鲸鱼娘女仆装头像（深蓝渐变长发、白色蕾丝女仆头饰、两侧鲸鱼鳍耳、蓝色蝴蝶结、黑白女仆衣领、开心张嘴笑），背景改为深蓝渐变，不再使用珊瑚橙配色；放置于 <code>META-INF/pluginIcon.svg</code>，在 IDE 设置列表与 JetBrains Marketplace 中展示。</li>

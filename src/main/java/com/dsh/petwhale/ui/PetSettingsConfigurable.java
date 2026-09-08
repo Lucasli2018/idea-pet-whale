@@ -47,8 +47,8 @@ import java.util.List;
  * 把预览回滚到持久化值。</p>
  *
  * <p>设置页自身配色<b>跟随 IDEA 主题</b>：全部颜色使用 {@link JBColor} 双值，
- * IDE 亮色 / 暗色主题下自动切换且字体保持清晰。切换"原版 / 精致版"宠物主题时，
- * 强调色（海洋蓝 / 珊瑚橙）随宠物主题联动，做到所见即所得。</p>
+ * IDE 亮色 / 暗色主题下自动切换且字体保持清晰。切换"原版 / 精致版"宠物皮肤时，
+ * 设置页统一使用海洋蓝强调色，仅宠物形象随主题变化。</p>
  *
  * <p>布局纪律（UI 三不原则）：纵向自然堆叠 + 行间 gap，控件互不重叠。</p>
  */
@@ -108,9 +108,9 @@ public final class PetSettingsConfigurable implements Configurable {
 
         // === 宠物 ===
         JPanel petCard = new CardPanel("宠物", "选择宠物并调整它的显示布局。");
-        petCard.add(buildItem("主题", "切换原版 / 精致版皮肤，选择后宠物与设置页立即换色。",
+        petCard.add(buildItem("主题", "",
                 buildThemeControl(), () -> setTheme(PetTheme.WHALE)));
-        petCard.add(buildItem("状态装饰", "在宠物状态气泡里显示喷水、小鱼等状态装饰；关闭后气泡只剩文字。",
+        petCard.add(buildItem("状态装饰", "",
                 buildDecorationsControl(), () -> setDecorations(true)));
         content.add(petCard);
 
@@ -118,13 +118,13 @@ public final class PetSettingsConfigurable implements Configurable {
 
         // === 显示 ===
         JPanel displayCard = new CardPanel("显示", "调整桌宠的大小、透明度与可见性。");
-        displayCard.add(buildItem("大小", "拖动滑块实时预览鲸鱼娘的显示尺寸。",
+        displayCard.add(buildItem("大小", "",
                 buildSizeControl(), () -> setSize(PetSettingsState.DEFAULT_SIZE_PERCENT)));
-        displayCard.add(buildItem("不透明度", "拖动滑块实时预览鲸鱼娘窗口的透明程度。",
+        displayCard.add(buildItem("不透明度", "",
                 buildOpacityControl(), () -> setOpacity(PetSettingsState.DEFAULT_OPACITY_PERCENT)));
-        displayCard.add(buildItem("显示宠物", "关闭后宠物隐藏，可到设置页重新显示（无残留召唤按钮）。",
+        displayCard.add(buildItem("显示宠物", "",
                 buildVisibleControl(), () -> setVisible(false)));
-        displayCard.add(buildItem("回到原位", "把鲸鱼娘送回屏幕右下角的老家，并停下当前溜达。",
+        displayCard.add(buildItem("回到原位", "",
                 buildReturnHomeControl(), this::returnHome));
         content.add(displayCard);
 
@@ -132,7 +132,7 @@ public final class PetSettingsConfigurable implements Configurable {
 
         // === 行为 ===
         JPanel behaviorCard = new CardPanel("行为", "控制鲸鱼娘的自动溜达与节奏。");
-        behaviorCard.add(buildItem("溜达速度", "拖动滑块调节鲸鱼娘自动溜达的行走快慢（1 最慢 ~ 8 最欢快），设置页内实时预览，Apply 后永久生效。",
+        behaviorCard.add(buildItem("溜达速度", "",
                 buildRoamControl(), () -> setRoamSpeed(PetSettingsState.DEFAULT_ROAM_SPEED)));
         content.add(behaviorCard);
 
@@ -140,7 +140,7 @@ public final class PetSettingsConfigurable implements Configurable {
 
         // === 关怀 ===
         JPanel careCard = new CardPanel("关怀", "久坐提醒与休息建议。");
-        careCard.add(buildItem("久坐关怀", "连续编码 60 分钟提醒喝水/起身。",
+        careCard.add(buildItem("久坐关怀", "",
                 buildCareControl(), () -> setCareEnabled(true)));
         content.add(careCard);
 
@@ -471,15 +471,8 @@ public final class PetSettingsConfigurable implements Configurable {
     private static final JBColor DESC_TEXT = new JBColor(
             new Color(120, 120, 120), new Color(150, 157, 170));
 
-    /** 原版 → 海洋蓝；精致版 → 珊瑚橙（各带亮 / 暗两套值）。 */
+    /** 原版 / 精致版共用海洋蓝配色（各带亮 / 暗两套值），避免「精致版」切换后设置页变成珊瑚橙。 */
     private static ThemePalette paletteOf(PetTheme theme) {
-        if (theme == PetTheme.WHALE_REFINED) {
-            return new ThemePalette(
-                    new JBColor(new Color(214, 106, 66), new Color(238, 150, 110)),  // 强调：珊瑚橙
-                    new JBColor(new Color(253, 243, 237), new Color(66, 55, 50)),    // 卡片底
-                    new JBColor(new Color(243, 214, 198), new Color(100, 82, 72)),   // 卡片边框
-                    new JBColor(new Color(196, 84, 48), new Color(242, 160, 122)));  // 链接
-        }
         return new ThemePalette(
                 new JBColor(new Color(42, 100, 180), new Color(114, 166, 232)),      // 强调：海洋蓝
                 new JBColor(new Color(239, 246, 253), new Color(52, 58, 66)),        // 卡片底
@@ -505,14 +498,16 @@ public final class PetSettingsConfigurable implements Configurable {
         JLabel titleLabel = new JLabel(title);
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 14f));
         titleLabel.setForeground(JBColor.foreground());
-        JLabel descLabel = new JLabel(description);
-        descLabel.setFont(descLabel.getFont().deriveFont(Font.PLAIN, 12f));
-        descLabel.setForeground(DESC_TEXT);
 
         JPanel textPanel = new JPanel(new BorderLayout(0, 4));
         textPanel.setOpaque(false);
         textPanel.add(titleLabel, BorderLayout.NORTH);
-        textPanel.add(descLabel, BorderLayout.CENTER);
+        if (description != null && !description.isEmpty()) {
+            JLabel descLabel = new JLabel(description);
+            descLabel.setFont(descLabel.getFont().deriveFont(Font.PLAIN, 12f));
+            descLabel.setForeground(DESC_TEXT);
+            textPanel.add(descLabel, BorderLayout.CENTER);
+        }
 
         JButton restore = linkButton("恢复默认");
         restore.addActionListener(e -> {
