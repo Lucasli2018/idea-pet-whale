@@ -42,7 +42,7 @@ import java.util.List;
  *
  * <p>采用卡片式布局：每个设置项位于圆角浅色卡片内，左侧为标题与描述，
  * 右侧为控件与"恢复默认"链接。所有视觉调整（大小、不透明度、主题、显示/隐藏、
- * 状态装饰）都会<b>实时预览</b>到当前桌宠窗口；只有点击 Apply / OK 时才会把值
+ * 状态装饰、溜达速度）都会<b>实时预览</b>到当前桌宠窗口；只有点击 Apply / OK 时才会把值
  * 持久化到 {@link PetSettingsState}。点击 Cancel / 关闭设置页时通过 {@link #reset()}
  * 把预览回滚到持久化值。</p>
  *
@@ -65,6 +65,8 @@ public final class PetSettingsConfigurable implements Configurable {
     private ComboBox<BooleanOption> visibleCombo;
     private ComboBox<BooleanOption> decorationsCombo;
     private JCheckBox careCheck;
+    private JSlider roamSlider;
+    private JLabel roamValue;
 
     /** 当前主题配色方案（设置页卡片/强调色/链接） */
     private ThemePalette palette;
@@ -82,6 +84,7 @@ public final class PetSettingsConfigurable implements Configurable {
     private boolean initialStartHidden;
     private boolean initialShowDecorations;
     private boolean initialCareEnabled;
+    private int initialRoamSpeed;
 
     @Override
     public @NlsContexts.ConfigurableName String getDisplayName() {
@@ -127,6 +130,14 @@ public final class PetSettingsConfigurable implements Configurable {
 
         content.add(Box.createVerticalStrut(12));
 
+        // === 行为 ===
+        JPanel behaviorCard = new CardPanel("行为", "控制鲸鱼娘的自动溜达与节奏。");
+        behaviorCard.add(buildItem("溜达速度", "拖动滑块调节鲸鱼娘自动溜达的行走快慢（1 最慢 ~ 8 最欢快），设置页内实时预览，Apply 后永久生效。",
+                buildRoamControl(), () -> setRoamSpeed(PetSettingsState.DEFAULT_ROAM_SPEED)));
+        content.add(behaviorCard);
+
+        content.add(Box.createVerticalStrut(12));
+
         // === 关怀 ===
         JPanel careCard = new CardPanel("关怀", "久坐提醒与休息建议。");
         careCard.add(buildItem("久坐关怀", "连续编码 60 分钟提醒喝水/起身。",
@@ -149,6 +160,7 @@ public final class PetSettingsConfigurable implements Configurable {
         initialStartHidden = state.isStartHidden();
         initialShowDecorations = state.isShowDecorations();
         initialCareEnabled = state.isCareEnabled();
+        initialRoamSpeed = state.getRoamSpeed();
         // 如果持久化值与服务运行时不一致，以持久化值为准
         service.setShowDecorations(initialShowDecorations);
     }
@@ -234,6 +246,30 @@ public final class PetSettingsConfigurable implements Configurable {
         return careCheck;
     }
 
+    /** "溜达速度"控件：滑块 1~8，拖动实时预览，配右侧数值标签。 */
+    private JComponent buildRoamControl() {
+        roamSlider = new JSlider(
+                PetSettingsState.MIN_ROAM_SPEED,
+                PetSettingsState.MAX_ROAM_SPEED,
+                initialRoamSpeed);
+        roamSlider.setMajorTickSpacing(1);
+        roamSlider.setMinorTickSpacing(1);
+        roamSlider.setPaintTicks(true);
+        roamSlider.setSnapToTicks(true);
+        roamValue = new JLabel(String.valueOf(initialRoamSpeed));
+        roamValue.setPreferredSize(new Dimension(40, roamValue.getPreferredSize().height));
+        roamSlider.addChangeListener(e -> {
+            roamValue.setText(String.valueOf(roamSlider.getValue()));
+            applyRoamPreview();
+        });
+
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        row.setOpaque(false);
+        row.add(roamSlider);
+        row.add(roamValue);
+        return row;
+    }
+
     /** "回到原位"控件：一个「一键归位」按钮，点击让鲸鱼娘回右下角老家。 */
     private JComponent buildReturnHomeControl() {
         JButton btn = new JButton("一键归位");
@@ -268,6 +304,14 @@ public final class PetSettingsConfigurable implements Configurable {
         PetFrame frame = currentFrame();
         if (frame != null) {
             frame.applySettings(sizeSlider.getValue(), opacitySlider.getValue());
+        }
+    }
+
+    /** 溜达速度实时预览：拖动滑块把速度透传给桌宠，立即生效、不落盘。 */
+    private void applyRoamPreview() {
+        PetFrame frame = currentFrame();
+        if (frame != null) {
+            frame.setRoamSpeedPreview(roamSlider.getValue());
         }
     }
 
@@ -314,6 +358,13 @@ public final class PetSettingsConfigurable implements Configurable {
         careCheck.setSelected(enabled);
     }
 
+    /** 把溜达速度恢复为默认值（"恢复默认"链接回调），并实时预览。 */
+    private void setRoamSpeed(int value) {
+        roamSlider.setValue(value);
+        roamValue.setText(String.valueOf(value));
+        applyRoamPreview();
+    }
+
     @Override
     public boolean isModified() {
         if (state == null || sizeSlider == null) return false;
@@ -322,7 +373,8 @@ public final class PetSettingsConfigurable implements Configurable {
                 || themeCombo.getSelectedItem() != state.theme()
                 || (visibleCombo.getSelectedItem() == BooleanOption.ON) == state.isStartHidden()
                 || (decorationsCombo.getSelectedItem() == BooleanOption.ON) != state.isShowDecorations()
-                || careCheck.isSelected() != state.isCareEnabled();
+                || careCheck.isSelected() != state.isCareEnabled()
+                || roamSlider.getValue() != state.getRoamSpeed();
     }
 
     @Override
@@ -337,6 +389,7 @@ public final class PetSettingsConfigurable implements Configurable {
         state.setStartHidden(visibleCombo.getSelectedItem() != BooleanOption.ON);
         state.setShowDecorations(decorationsCombo.getSelectedItem() == BooleanOption.ON);
         state.setCareEnabled(careCheck.isSelected());
+        state.setRoamSpeed(roamSlider.getValue());
 
         service.setTheme(state.theme());
         service.setShowDecorations(state.isShowDecorations());
@@ -361,6 +414,8 @@ public final class PetSettingsConfigurable implements Configurable {
         visibleCombo.setSelectedItem(state.isStartHidden() ? BooleanOption.OFF : BooleanOption.ON);
         decorationsCombo.setSelectedItem(state.isShowDecorations() ? BooleanOption.ON : BooleanOption.OFF);
         careCheck.setSelected(state.isCareEnabled());
+        roamSlider.setValue(state.getRoamSpeed());
+        roamValue.setText(String.valueOf(state.getRoamSpeed()));
 
         service.setTheme(state.theme());
         service.setShowDecorations(state.isShowDecorations());
@@ -393,6 +448,8 @@ public final class PetSettingsConfigurable implements Configurable {
         visibleCombo = null;
         decorationsCombo = null;
         careCheck = null;
+        roamSlider = null;
+        roamValue = null;
         cards.clear();
         themeLinks.clear();
         root = null;

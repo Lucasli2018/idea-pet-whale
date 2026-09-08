@@ -38,7 +38,8 @@ DSH Pet Whale 是一个 JetBrains IDEA 平台的桌面宠物插件（Plugin）�
 | 投喂与成长 | 喂小鱼干（亲密度 +10、点数 +5）；每 200 亲密度升 1 级；称号五阶：素昧平生 → 灵魂伴侣 |
 | 久坐关怀 | 连续编码 60 分钟气泡提醒喝水/起身（可关闭）；深夜自动困倦台词 |
 | 拖拽定位 | 按住桌宠可以拖到屏幕任何位置，位置跨重启记忆 |
-| 隐藏 / 召唤 | 悬停面板的"隐藏"按钮收起桌宠，桌面右下角留下"召唤鲸鱼娘"按钮 |
+| 自动溜达 | 空闲时鲸鱼娘在屏幕上自由左右跑动、撞墙反弹；设置页「行为 → 溜达速度」可拖滑块调速（1 最慢 ~ 8 最欢快，默认 3） |
+| 隐藏 / 归位 | 悬停面板的"隐藏"按钮收起桌宠（无残留召唤按钮，需到设置页「显示宠物」重新显示或卡片「归位」）；设置页「回到原位」与卡片「归位」一键送回右下角老家 |
 | 始终置顶 | 无边框透明 `JWindow`，浮在所有窗口之上，不进任务栏 / Alt-Tab |
 
 ## 玩法数值说明
@@ -69,7 +70,7 @@ DSH Pet Whale 是一个 JetBrains IDEA 平台的桌面宠物插件（Plugin）�
 活动阶段（ActivityPhase）到动画的映射，与 DSH 主机完全一致：
 
 ```
-thinking → running      tool    → running-right
+thinking → running-left  tool    → running-right
 review   → review       waiting → waiting
 done     → jumping      failed  → failed
 idle     → idle

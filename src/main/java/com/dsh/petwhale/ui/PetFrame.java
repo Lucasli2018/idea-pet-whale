@@ -61,6 +61,12 @@ public final class PetFrame {
      * Cancel / 关闭设置页时由 {@link #clearPreviewOverride()} 清除。
      */
     private volatile Integer previewSizePercent;
+    /**
+     * 实时预览的溜达速度（设置页拖动速度滑块时写入）；null = 未在预览，
+     * 渲染按持久化值。只影响移动速度，不落盘；Apply 后与持久化值一致，
+     * Cancel / 关闭设置页时由 {@link #clearPreviewOverride()} 清除。
+     */
+    private volatile Integer previewRoamSpeed;
     /** 持久化主题是否已同步进运行时服务（仅首次 buildFrame 同步一次） */
     private boolean themeSynced;
 
@@ -200,6 +206,17 @@ public final class PetFrame {
         });
     }
 
+    /**
+     * 实时预览溜达速度（设置页拖动速度滑块时调用）。EDT 异步把值透传给面板，
+     * 立即生效、不落盘；Apply / Cancel 由 {@link #clearPreviewOverride()} 统一复位。
+     */
+    public void setRoamSpeedPreview(int v) {
+        SwingUtilities.invokeLater(() -> {
+            previewRoamSpeed = v;
+            if (panel != null) panel.setRoamSpeed(v);
+        });
+    }
+
     /** EDT 内部：按给定缩放与透明度同步窗口尺寸、位置与不透明度。 */
     private void applySettingsInternal(int sizePercent, int opacityPercent) {
         Dimension size = PetPanel.preferredPetSize(sizePercent);
@@ -269,9 +286,11 @@ public final class PetFrame {
     public void clearPreviewOverride() {
         SwingUtilities.invokeLater(() -> {
             previewSizePercent = null;
+            previewRoamSpeed = null;
             if (frame != null && settings != null) {
                 applySettingsInternal(settings.getSizePercent(), settings.getOpacityPercent());
             }
+            if (panel != null) panel.setRoamSpeed(-1);
         });
     }
 
@@ -301,6 +320,7 @@ public final class PetFrame {
     /** 构造主桌宠窗口（在 EDT 上调用）。 */
     private void buildFrame() {
         previewSizePercent = null; // 新建窗口一律以持久化值为准
+        previewRoamSpeed = null;
         int sizePercent = settings == null
                 ? PetSettingsState.DEFAULT_SIZE_PERCENT : settings.getSizePercent();
         int opacityPercent = settings == null

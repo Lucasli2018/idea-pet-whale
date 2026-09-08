@@ -55,6 +55,8 @@ public final class PetPanel extends JPanel {
     /** 当前主题（精灵图 + 帧数据） */
     private final PetStateService service;
     private final PetFrame frame;
+    /** 用户设置（应用级持久化）；构造时解析，null 仅出现在 headless/测试环境 */
+    private final PetSettingsState settings;
     private final AtomicReference<PetResources.Theme> themeRef = new AtomicReference<>();
     /** 当前正在播放的动画 */
     private final AtomicReference<PetAnimation> currentAnimation =
@@ -96,10 +98,10 @@ public final class PetPanel extends JPanel {
     static final int DOUBLE_CLICK_WINDOW_MS = 400;
     /**
      * 自动溜达：每个移动 tick（{@link #ROAM_TICK_MS}）推进的像素数。
-     * 40ms × 5px ≈ 125px/s，约 0.65 倍自身宽度/秒，属轻快小跑；
-     * 想要更慢更悠闲就调小（如 3），更风风火火就调大（如 7）。
+     * 实际取值来自设置（{@link PetSettingsState#getRoamSpeed()}，默认 3px ≈ 75px/s，
+     * 约 0.4 倍自身宽度/秒，从容小碎步）；{@link #roamSpeedOverride} 为设置页实时预览的覆盖值。
+     * 想要更慢就把设置页"溜达速度"调小，更风风火火就调大（1~8）。
      */
-    private static final int ROAM_SPEED = 5;
     /** 自动溜达：移动定时器间隔（毫秒） */
     private static final int ROAM_TICK_MS = 40;
     /** 是否正在自动溜达 */
@@ -114,10 +116,13 @@ public final class PetPanel extends JPanel {
     private boolean pointerDown;
     /** 鼠标是否悬停在宠物有效区（头部/脚部） */
     private boolean hovering;
+    /** 溜达速度预览覆盖值（设置页拖动滑块时写入）；-1 = 未预览，用持久化值 */
+    private volatile int roamSpeedOverride = -1;
 
     public PetPanel(@NotNull PetStateService service, @NotNull PetFrame frame) {
         this.service = service;
         this.frame = frame;
+        this.settings = resolveSettings();
         setOpaque(false);
         setPreferredSize(preferredPetSize(100));
 
@@ -296,6 +301,17 @@ public final class PetPanel extends JPanel {
             return settings == null || settings.isCareEnabled();
         } catch (Throwable t) {
             return true;
+        }
+    }
+
+    /** 解析应用级设置服务；headless/测试环境拿不到时返回 null，调用方降级用默认值。 */
+    private static PetSettingsState resolveSettings() {
+        try {
+            if (com.intellij.openapi.application.ApplicationManager.getApplication() == null) return null;
+            return com.intellij.openapi.application.ApplicationManager
+                    .getApplication().getService(PetSettingsState.class);
+        } catch (Throwable t) {
+            return null;
         }
     }
 
@@ -512,7 +528,7 @@ public final class PetPanel extends JPanel {
         int size = frame.currentSizePercent();
         int w = PetSettingsState.scaledWidth(size);
         Rectangle screen = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
-        int nx = p.x + roamDir * ROAM_SPEED;
+        int nx = p.x + roamDir * currentRoamSpeed();
         if (nx < screen.x) {
             nx = screen.x;
             roamDir = 1;
@@ -521,6 +537,18 @@ public final class PetPanel extends JPanel {
             roamDir = -1;
         }
         frame.setLocation(nx, p.y);
+    }
+
+    /** 当前生效的溜达速度（px/帧）：预览覆盖优先，否则取持久化设置值（保底默认 3）。 */
+    private int currentRoamSpeed() {
+        int v = roamSpeedOverride >= 1 ? roamSpeedOverride
+                : (settings != null ? settings.getRoamSpeed() : PetSettingsState.DEFAULT_ROAM_SPEED);
+        return v < 1 ? PetSettingsState.DEFAULT_ROAM_SPEED : v;
+    }
+
+    /** 设置页实时预览：覆盖溜达速度（{@code -1} 取消覆盖，恢复用持久化值）。 */
+    void setRoamSpeed(int value) {
+        roamSpeedOverride = value;
     }
 
     /** 停止溜达，交还动画控制权给状态机，并安排一段时间后再溜达。 */

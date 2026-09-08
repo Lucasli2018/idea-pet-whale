@@ -59,6 +59,7 @@ mvn -B test
 | Click "隐藏" | Whale disappears; no leftover button on screen (recall via Settings → 显示宠物, or card "归位") |
 | Click card "归位" / Settings "一键归位" | Whale walks back to bottom-right home and stops roaming |
 | (idle) | Whale occasionally roams left/right across the screen on its own |
+| Open Settings → 行为 → 溜达速度, drag the slider | Walking speed updates live; Apply persists it (default 3, range 1~8); Cancel / close rolls back |
 | `git commit` / `git pull` in terminal inside the project | Whale briefly plays the `review` animation, then settles back |
 | Drag the whale | Frame follows the cursor; release anywhere |
 
