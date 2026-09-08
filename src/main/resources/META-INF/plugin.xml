@@ -1,7 +1,7 @@
 <idea-plugin url="https://github.com/zhu1090093659/idea-pet-whale">
     <id>com.dsh.petwhale</id>
     <name>Pet Whale</name>
-    <version>0.0.13</version>
+    <version>0.0.16</version>
     <vendor email="1906859953@qq.com" url="https://github.com/Lucasli2018">lucasli</vendor>
 
     <idea-version since-build="231"/>
@@ -15,6 +15,23 @@
     ]]></description>
 
     <change-notes><![CDATA[
+        <h4>0.0.16（新增精致鲸鱼娘插件图标 + 版本递增）</h4>
+        <ul>
+            <li><b>新增插件图标</b>：绘制精致鲸鱼娘头像（珊瑚橙主题，含双马尾、喷水鲸鱼特征与星星点缀），放置于 <code>META-INF/pluginIcon.svg</code>，在 IDE 设置列表与 JetBrains Marketplace 中展示。</li>
+            <li>版本号递增 0.0.15 → 0.0.16。</li>
+        </ul>
+        <h4>0.0.15（溜达速度可调 + 行走手感与流畅度调优）</h4>
+        <ul>
+            <li><b>溜达速度可调</b>：设置页新增「行为 → 溜达速度」滑块（1~8，默认 3），支持实时预览、Apply 持久化、一键恢复默认。</li>
+            <li><b>行走更流畅</b>：左右跑帧时长均速化（尾帧 400ms → 300ms）；撞墙/转向改用镜像切换并保留当前帧进度，转身不再跳帧。</li>
+        </ul>
+        <h4>0.0.14（5 项交互改进：去召唤按钮 / 关宠物不弹气泡 / 左右跑动 / 自动溜达 / 一键回原位）</h4>
+        <ul>
+            <li>去掉隐藏宠物后的「召唤鲸鱼娘」按钮；关闭/隐藏宠物后通过 <code>isPetVisible()</code> 门禁停止所有气泡、悬浮层与自动行为。</li>
+            <li><code>THINKING</code> 阶段改用 <code>RUNNING_LEFT</code>（向左跑），running 改为左右跑动动画。</li>
+            <li>新增自动溜达状态机：空闲时随机左右跑动、撞屏幕边界反弹、交互时自动停下。</li>
+            <li>设置页「回到原位」与宠物卡片「归位」按钮，一键回右下角老家并停溜达。</li>
+        </ul>
         <h4>0.0.13（按钮长度减半 + 修复鼠标停在按钮上悬浮层消失）</h4>
         <ul>
             <li><b>按钮长度缩短约 50%</b>：按钮卡片布局从 BoxLayout 换回 FlowLayout——此前 BoxLayout 会把按钮拉伸均分卡片宽度，现按文字实际大小排列。</li>

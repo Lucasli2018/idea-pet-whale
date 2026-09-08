@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Pet Whale 鲸鱼娘">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFC2A0"/>
+      <stop offset="1" stop-color="#FF7A5C"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.4" r="0.62">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.85"/>
+      <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="hair" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFB38A"/>
+      <stop offset="1" stop-color="#FF6F5E"/>
+    </linearGradient>
+    <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#D2EEF8"/>
+      <stop offset="1" stop-color="#A6D7EC"/>
+    </linearGradient>
+    <radialGradient id="belly" cx="0.5" cy="0.4" r="0.7">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E8F6FC"/>
+    </radialGradient>
+    <linearGradient id="cheek" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFA9BC"/>
+      <stop offset="1" stop-color="#FF8099"/>
+    </linearGradient>
+    <linearGradient id="star" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE7A0"/>
+      <stop offset="1" stop-color="#FFC24D"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+  </defs>
+
+  <!-- background -->
+  <rect x="14" y="14" width="484" height="484" rx="116" fill="url(#bg)"/>
+  <rect x="14" y="14" width="484" height="484" rx="116" fill="url(#glow)"/>
+  <rect x="14" y="14" width="484" height="484" rx="116" fill="none" stroke="#FFFFFF" stroke-opacity="0.28" stroke-width="3"/>
+
+  <!-- ground shadow -->
+  <ellipse cx="256" cy="438" rx="128" ry="20" fill="#7A2E1E" opacity="0.18" filter="url(#soft)"/>
+
+  <!-- side hair locks (behind head) -->
+  <ellipse cx="132" cy="300" rx="48" ry="116" fill="url(#hair)" stroke="#E2604E" stroke-width="3" stroke-opacity="0.45" transform="rotate(-12 132 300)"/>
+  <ellipse cx="380" cy="300" rx="48" ry="116" fill="url(#hair)" stroke="#E2604E" stroke-width="3" stroke-opacity="0.45" transform="rotate(12 380 300)"/>
+
+  <!-- whale head -->
+  <ellipse cx="256" cy="252" rx="134" ry="124" fill="url(#skin)" stroke="#8FC9E0" stroke-width="3"/>
+  <!-- belly -->
+  <ellipse cx="256" cy="306" rx="100" ry="80" fill="url(#belly)"/>
+
+  <!-- bangs -->
+  <path d="M126 244 C126 150 190 110 256 110 C322 110 386 150 386 244 C360 212 330 206 300 222 C285 230 268 230 256 222 C244 230 227 230 212 222 C182 206 152 212 126 244 Z" fill="url(#hair)" stroke="#E2604E" stroke-width="3" stroke-opacity="0.45"/>
+
+  <!-- spout -->
+  <path d="M256 104 C250 86 266 84 260 66" fill="none" stroke="#BFE9F7" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="260" cy="60" r="7" fill="#BFE9F7"/>
+  <circle cx="244" cy="74" r="5" fill="#BFE9F7"/>
+  <circle cx="276" cy="76" r="4" fill="#BFE9F7"/>
+
+  <!-- eyes -->
+  <ellipse cx="208" cy="258" rx="22" ry="28" fill="#2B3A55"/>
+  <ellipse cx="304" cy="258" rx="22" ry="28" fill="#2B3A55"/>
+  <circle cx="216" cy="247" r="8.5" fill="#FFFFFF"/>
+  <circle cx="312" cy="247" r="8.5" fill="#FFFFFF"/>
+  <circle cx="201" cy="267" r="4" fill="#FFFFFF" opacity="0.85"/>
+  <circle cx="297" cy="267" r="4" fill="#FFFFFF" opacity="0.85"/>
+
+  <!-- blush -->
+  <ellipse cx="168" cy="294" rx="20" ry="12" fill="url(#cheek)"/>
+  <ellipse cx="344" cy="294" rx="20" ry="12" fill="url(#cheek)"/>
+
+  <!-- mouth -->
+  <path d="M238 300 Q256 318 274 300" fill="none" stroke="#C0586E" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- star accessory -->
+  <path d="M352 132 L359 150 L378 152 L363 165 L368 183 L352 173 L336 183 L341 165 L326 152 L345 150 Z" fill="url(#star)" stroke="#F0A93B" stroke-width="1.5" stroke-linejoin="round"/>
+</svg>
