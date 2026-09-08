@@ -143,7 +143,7 @@ public final class PetStateMachine {
      * 这里是契约的中心：调整本表就等于调整桌宠"怎么表达什么"。
      *
      * <pre>
-     *   THINKING → RUNNING         （原地跑，提示思考中）
+     *   THINKING → RUNNING_LEFT    （向左跑，提示思考中）
      *   TOOL     → RUNNING_RIGHT   （向右跑，提示工具调用）
      *   REVIEW   → REVIEW          （来回张望）
      *   WAITING  → WAITING         （期待姿势）
@@ -155,7 +155,7 @@ public final class PetStateMachine {
     @NotNull
     public static PetAnimation animationForPhase(@NotNull PetActivityPhase phase) {
         switch (phase) {
-            case THINKING: return PetAnimation.RUNNING;
+            case THINKING: return PetAnimation.RUNNING_LEFT;
             case TOOL: return PetAnimation.RUNNING_RIGHT;
             case REVIEW: return PetAnimation.REVIEW;
             case WAITING: return PetAnimation.WAITING;

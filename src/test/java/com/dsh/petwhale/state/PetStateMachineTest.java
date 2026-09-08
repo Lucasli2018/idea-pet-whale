@@ -28,7 +28,7 @@ public class PetStateMachineTest {
     /** 7 个阶段都要有明确的动画映射（不能落到默认 IDLE 兜底）。 */
     @Test
     public void animationForPhase_allPhasesMapped() {
-        assertEquals(PetAnimation.RUNNING, PetStateMachine.animationForPhase(PetActivityPhase.THINKING));
+        assertEquals(PetAnimation.RUNNING_LEFT, PetStateMachine.animationForPhase(PetActivityPhase.THINKING));
         assertEquals(PetAnimation.RUNNING_RIGHT, PetStateMachine.animationForPhase(PetActivityPhase.TOOL));
         assertEquals(PetAnimation.REVIEW, PetStateMachine.animationForPhase(PetActivityPhase.REVIEW));
         assertEquals(PetAnimation.WAITING, PetStateMachine.animationForPhase(PetActivityPhase.WAITING));
@@ -82,7 +82,7 @@ public class PetStateMachineTest {
         machine.onActivityStatus(new PetStateInput(PetActivityPhase.THINKING, null, null));
         now.set(10_000L);
         PetStateSnapshot snap = machine.render();
-        assertEquals(PetAnimation.RUNNING, snap.animation());
+        assertEquals(PetAnimation.RUNNING_LEFT, snap.animation());
         assertNull(snap.bubble());
     }
 

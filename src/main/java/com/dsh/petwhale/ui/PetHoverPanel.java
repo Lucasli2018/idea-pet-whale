@@ -218,6 +218,7 @@ public final class PetHoverPanel {
         cardPanel.add(buildButton("喂食", this::onFeed));
         cardPanel.add(buildButton("改名", this::onRename));
         cardPanel.add(buildButton("设置", this::onOpenSettings));
+        cardPanel.add(buildButton("归位", this::onReturnHome));
         cardPanel.add(buildButton("隐藏", this::onHide));
 
         this.cardWindow = new JWindow();
@@ -591,6 +592,12 @@ public final class PetHoverPanel {
     private void onHide() {
         hideNow();
         frame.hide();
+    }
+
+    /** 一键回到屏幕右下角老家（设置页同款能力，卡片内也能用）。 */
+    private void onReturnHome() {
+        frame.returnToHome();
+        refreshContent();
     }
 
     /**

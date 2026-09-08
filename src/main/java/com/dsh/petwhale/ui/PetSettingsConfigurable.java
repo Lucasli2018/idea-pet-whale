@@ -119,8 +119,10 @@ public final class PetSettingsConfigurable implements Configurable {
                 buildSizeControl(), () -> setSize(PetSettingsState.DEFAULT_SIZE_PERCENT)));
         displayCard.add(buildItem("不透明度", "拖动滑块实时预览鲸鱼娘窗口的透明程度。",
                 buildOpacityControl(), () -> setOpacity(PetSettingsState.DEFAULT_OPACITY_PERCENT)));
-        displayCard.add(buildItem("显示宠物", "关闭后宠物隐藏，可从宠物悬浮面板重新召唤。",
+        displayCard.add(buildItem("显示宠物", "关闭后宠物隐藏，可到设置页重新显示（无残留召唤按钮）。",
                 buildVisibleControl(), () -> setVisible(false)));
+        displayCard.add(buildItem("回到原位", "把鲸鱼娘送回屏幕右下角的老家，并停下当前溜达。",
+                buildReturnHomeControl(), this::returnHome));
         content.add(displayCard);
 
         content.add(Box.createVerticalStrut(12));
@@ -230,6 +232,21 @@ public final class PetSettingsConfigurable implements Configurable {
         careCheck.setSelected(initialCareEnabled);
         careCheck.setOpaque(false);
         return careCheck;
+    }
+
+    /** "回到原位"控件：一个「一键归位」按钮，点击让鲸鱼娘回右下角老家。 */
+    private JComponent buildReturnHomeControl() {
+        JButton btn = new JButton("一键归位");
+        btn.setOpaque(false);
+        btn.addActionListener(e -> returnHome());
+        return btn;
+    }
+
+    /** 把鲸鱼娘送回默认位置（同步把「显示宠物」开关置为开）。 */
+    private void returnHome() {
+        visibleCombo.setSelectedItem(BooleanOption.ON);
+        PetFrame frame = currentFrame();
+        if (frame != null) frame.returnToHome();
     }
 
     // === 实时预览动作 ===

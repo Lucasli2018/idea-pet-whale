@@ -53,11 +53,12 @@ mvn -B test
 
 | Step | Expected |
 |---|---|
-| Click on an editor tab | Whale switches to `thinking` (running animation) |
-| Right-click the whale | Hover panel appears with "精致版 / 隐藏" buttons |
+| Click on an editor tab | Whale switches to `thinking` (running-left animation) |
+| Right-click the whale | Hover panel appears with "精致版 / 设置 / 归位 / 隐藏" buttons |
 | Click "精致版" | Whale swaps to the refined atlas on the next repaint |
-| Click "隐藏" | Whale disappears, a small "召唤鲸鱼娘" button shows at the bottom-right |
-| Click "召唤鲸鱼娘" | Whale reappears |
+| Click "隐藏" | Whale disappears; no leftover button on screen (recall via Settings → 显示宠物, or card "归位") |
+| Click card "归位" / Settings "一键归位" | Whale walks back to bottom-right home and stops roaming |
+| (idle) | Whale occasionally roams left/right across the screen on its own |
 | `git commit` / `git pull` in terminal inside the project | Whale briefly plays the `review` animation, then settles back |
 | Drag the whale | Frame follows the cursor; release anywhere |
 

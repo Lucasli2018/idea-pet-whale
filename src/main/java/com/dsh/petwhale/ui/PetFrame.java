@@ -6,8 +6,6 @@ import com.dsh.petwhale.state.PetStateService;
 import com.intellij.openapi.application.ApplicationManager;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.BorderFactory;
-import javax.swing.JButton;
 import javax.swing.JWindow;
 import javax.swing.SwingUtilities;
 import java.awt.Color;
@@ -28,12 +26,12 @@ import java.awt.Toolkit;
  *       永远置顶，桌面背景透出来</li>
  *   <li>启动时从 {@link PetSettingsState} 恢复大小 / 不透明度 / 上次位置 / 主题；
  *       没有保存过位置则自动定位右下角（用 {@code getMaximumWindowBounds} 排除任务栏）</li>
- *   <li>鼠标悬停宠物时浮现 {@link PetHoverPanel} 交互面板（喂食 / 改名 / 隐藏）；
+ *   <li>鼠标悬停宠物时浮现 {@link PetHoverPanel} 交互面板（喂食 / 改名 / 设置 / 归位 / 隐藏）；
  *       隐藏/显示也可走设置页按钮</li>
  *   <li>鼠标拖动由 {@link PetPanel} 的 MouseAdapter 处理，本类只暴露位置读写；
  *       拖拽结束 / 隐藏 / 销毁时把当前位置写回设置持久化</li>
- *   <li>"隐藏"动作收起桌宠 + 显示一个小的"召唤鲸鱼娘"召唤按钮；隐藏状态跨重启记忆；
- *       {@link #unhide()} 反向恢复（设置页"显示"按钮调用）</li>
+ *   <li>"隐藏"动作收起桌宠（不再残留召唤按钮）；隐藏状态跨重启记忆，
+ *       重新显示走设置页「显示宠物」开关或 {@link #returnToHome()}（也支持一键回老家）</li>
  *   <li>窗口上下扩展 {@link PetPanel#JUMP_ROOM} 给跳跃动作预留头部缓冲；
  *       所有保存/读取/拖拽位置都以<b>宠物视觉左上角</b>为准，兼容旧存档。</li>
  * </ul>
@@ -53,9 +51,7 @@ public final class PetFrame {
     private PetBubble bubble;
     /** 悬停交互面板（懒加载） */
     private PetHoverPanel hover;
-    /** "召唤鲸鱼娘"按钮（懒加载，仅在 hide 后存在） */
-    private JWindow summon;
-    /** 桌宠当前是否可见（可见包括 summon 状态——召唤按钮也算"用户能看到"） */
+    /** 桌宠当前是否对用户可见（frame 窗口是否显示） */
     private boolean visible = true;
     /** 用户设置（应用级持久化）；构造时解析，null 仅出现在平台测试环境 */
     private final PetSettingsState settings;
@@ -96,14 +92,14 @@ public final class PetFrame {
             if (bubble != null) bubble.dispose();
             if (hover != null) hover.dispose();
             if (frame != null) frame.dispose();
-            if (summon != null) summon.dispose();
             visible = false;
         });
     }
 
     /**
-     * 隐藏桌宠（不销毁）：桌宠窗口消失，右下角留下"召唤鲸鱼娘"按钮。
-     * 隐藏状态写入设置持久化，下次启动直接收起。
+     * 隐藏桌宠（不销毁）：桌宠窗口消失，不再残留任何召唤按钮；
+     * 重新显示走设置页「显示宠物」开关或 {@link #returnToHome()}。
+     * 隐藏状态写入设置持久化，下次启动直接收起（无召唤按钮）。
      */
     public void hide() {
         SwingUtilities.invokeLater(() -> {
@@ -111,22 +107,16 @@ public final class PetFrame {
             if (frame != null) frame.setVisible(false);
             if (bubble != null) bubble.hideNow();
             if (hover != null) hover.hideNow();
-            if (summon == null) summon = buildSummon();
-            summon.setVisible(true);
         });
     }
 
     /**
-     * 恢复显示桌宠（设置页"显示鲸鱼娘"按钮调用）：
-     * 销毁召唤按钮、重置"启动时收起"、把桌宠窗口放回来。
+     * 恢复显示桌宠（设置页「显示宠物」开关调用）：
+     * 重置"启动时收起"、把桌宠窗口放回来。
      */
     public void unhide() {
         SwingUtilities.invokeLater(() -> {
             if (settings != null) settings.setStartHidden(false);
-            if (summon != null) {
-                summon.dispose();
-                summon = null;
-            }
             if (frame != null) {
                 frame.setVisible(true);
             } else {
@@ -135,9 +125,18 @@ public final class PetFrame {
         });
     }
 
-    /** 当前是否对用户可见（桌宠本体或召唤按钮任一显示都算可见） */
+    /** 当前是否对用户可见（窗口已构建并显示）。 */
     public boolean isVisible() {
         return visible;
+    }
+
+    /**
+     * 桌宠本体窗口当前是否真的显示在屏幕上（JWindow 可见性）。
+     * 全部气泡 / 悬浮层 / 自动溜达的门禁都基于它，
+     * 避免"设置里关闭宠物后还弹气泡"这类问题。
+     */
+    public boolean isPetVisible() {
+        return frame != null && frame.isVisible();
     }
 
     /**
@@ -218,7 +217,7 @@ public final class PetFrame {
      */
     public void showBubble(@NotNull String text) {
         SwingUtilities.invokeLater(() -> {
-            if (frame == null || text.isBlank()) return;
+            if (frame == null || !frame.isVisible() || text.isBlank()) return;
             if (bubble == null) bubble = new PetBubble();
             Point anchor = getLocation();
             int w = PetSettingsState.scaledWidth(currentSizePercent());
@@ -230,7 +229,7 @@ public final class PetFrame {
     /** 鼠标停留宠物头部区域（顶边下方 25% 以上）：显示头顶数值胶囊（EDT 异步）。 */
     public void showStatsOverlay() {
         SwingUtilities.invokeLater(() -> {
-            if (frame == null) return;
+            if (frame == null || !frame.isVisible()) return;
             if (hover == null) hover = new PetHoverPanel(this, service);
             Point anchor = getLocation();
             int h = PetSettingsState.scaledHeight(currentSizePercent());
@@ -241,7 +240,7 @@ public final class PetFrame {
     /** 鼠标停留宠物脚部区域（底边上方 25% 以下）：显示脚底按钮卡片（EDT 异步）。 */
     public void showCardOverlay() {
         SwingUtilities.invokeLater(() -> {
-            if (frame == null) return;
+            if (frame == null || !frame.isVisible()) return;
             if (hover == null) hover = new PetHoverPanel(this, service);
             Point anchor = getLocation();
             int h = PetSettingsState.scaledHeight(currentSizePercent());
@@ -308,7 +307,7 @@ public final class PetFrame {
                 ? PetSettingsState.DEFAULT_OPACITY_PERCENT : settings.getOpacityPercent();
 
         if (settings != null && !themeSynced) {
-            // 仅首次构建时把持久化主题同步进运行时服务；之后的重建（隐藏/召唤切换）
+            // 仅首次构建时把持久化主题同步进运行时服务；之后的重建（隐藏/显示切换）
             // 不再覆盖运行时主题，避免设置页已预览切换的主题被旧值顶回去
             service.setTheme(settings.theme());
             themeSynced = true;
@@ -328,10 +327,7 @@ public final class PetFrame {
         applyOpacity(opacityPercent);
         frame.setVisible(!startHidden());
         visible = true;
-        if (startHidden()) {
-            if (summon == null) summon = buildSummon();
-            summon.setVisible(true);
-        } else {
+        if (!startHidden()) {
             String greet = PetDialogue.random("greet");
             if (greet != null) showBubble(greet);
         }
@@ -343,30 +339,20 @@ public final class PetFrame {
     }
 
     /**
-     * 构造"召唤鲸鱼娘"小按钮。位置：屏幕右下角（任务栏上方）。
+     * 一键回到右下角老家：确保桌宠可见，停止当前自动溜达，把窗口移到默认位置并持久化。
+     * 设置页「回到原位」与宠物卡片「归位」按钮都调用此方法。
      */
-    private JWindow buildSummon() {
-        JWindow window = new JWindow();
-        JButton btn = new JButton("召唤鲸鱼娘");
-        btn.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
-        btn.addActionListener(e -> SwingUtilities.invokeLater(() -> {
-            window.dispose();
-            summon = null;
+    public void returnToHome() {
+        SwingUtilities.invokeLater(() -> {
             if (settings != null) settings.setStartHidden(false);
-            if (frame != null) {
-                frame.setVisible(true);
-                return;
-            }
-            buildFrame();
-        }));
-        window.getContentPane().add(btn);
-        window.pack();
-        Rectangle screen = GraphicsEnvironment.getLocalGraphicsEnvironment()
-                .getMaximumWindowBounds();
-        window.setLocation(
-                screen.x + screen.width - window.getWidth() - 24,
-                screen.y + screen.height - window.getHeight() - 24);
-        return window;
+            if (frame == null) buildFrame();
+            frame.setVisible(true);
+            if (panel != null) panel.stopRoaming();
+            Point home = defaultLocation(currentSizePercent());
+            setLocation(home.x, home.y);
+            savePosition();
+            showBubble("我回老家啦~");
+        });
     }
 
     /**

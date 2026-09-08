@@ -17,7 +17,7 @@ import org.jetbrains.annotations.Nullable;
  *   <li>{@code opacityPercent} —— 窗口不透明度（百分比，100 = 完全不透明）</li>
  *   <li>{@code x}/{@code y} —— 上次窗口位置（{@code -1} 表示自动定位右下角）</li>
  *   <li>{@code themeName} —— 默认主题名（{@link PetTheme} 枚举名）</li>
- *   <li>{@code startHidden} —— 启动时是否直接收起（仅显示"召唤鲸鱼娘"按钮）</li>
+ *   <li>{@code startHidden} —— 启动时是否直接收起（隐藏后无召唤按钮，需到设置页重新显示）</li>
  * </ul>
  *
  * <p>所有取值在写入端（setter）统一 clamp，保证从 XML 反序列化进来的脏数据

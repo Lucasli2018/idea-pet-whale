@@ -19,7 +19,11 @@ import java.awt.Graphics2D;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
+import java.awt.GraphicsEnvironment;
+import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -90,6 +94,22 @@ public final class PetPanel extends JPanel {
     private long overrideUntil = 0;
     /** 双击判定窗口（毫秒） */
     static final int DOUBLE_CLICK_WINDOW_MS = 400;
+    /** 自动溜达：每帧移动像素 */
+    private static final int ROAM_SPEED = 4;
+    /** 自动溜达：移动定时器间隔（毫秒） */
+    private static final int ROAM_TICK_MS = 40;
+    /** 是否正在自动溜达 */
+    private boolean roaming;
+    /** 溜达方向：+1 向右，-1 向左 */
+    private int roamDir = 1;
+    /** 本次溜达结束时间戳 */
+    private long roamUntil;
+    /** 下次允许开始溜达的时间戳 */
+    private long nextRoamAt;
+    /** 鼠标是否按下（拖拽中），按下时停止溜达 */
+    private boolean pointerDown;
+    /** 鼠标是否悬停在宠物有效区（头部/脚部） */
+    private boolean hovering;
 
     public PetPanel(@NotNull PetStateService service, @NotNull PetFrame frame) {
         this.service = service;
@@ -114,6 +134,8 @@ public final class PetPanel extends JPanel {
                 pressX = e.getX();
                 pressY = e.getY();
                 draggedSincePress = false;
+                pointerDown = true;
+                stopRoaming();
             }
 
             @Override
@@ -129,6 +151,7 @@ public final class PetPanel extends JPanel {
                 pressX = -1;
                 pressY = -1;
                 draggedSincePress = false;
+                pointerDown = false;
             }
 
             @Override
@@ -138,6 +161,7 @@ public final class PetPanel extends JPanel {
 
             @Override
             public void mouseExited(MouseEvent e) {
+                hovering = false;
                 frame.hideHoverPanel();
             }
         };
@@ -227,6 +251,11 @@ public final class PetPanel extends JPanel {
         });
         idleTimer.start();
 
+        // === 自动溜达定时器：随机间隔后让鲸鱼娘在屏幕上自由左右跑动 ===
+        nextRoamAt = System.currentTimeMillis() + randomBetween(4000, 10000);
+        Timer roamTimer = new Timer(ROAM_TICK_MS, e -> tickRoam());
+        roamTimer.start();
+
         themeRef.set(service.currentTheme());
         currentDurations.set(initialDurations());
     }
@@ -276,14 +305,18 @@ public final class PetPanel extends JPanel {
         int spriteH = PetSettingsState.scaledHeight(sizePercent);
         int spriteY = e.getY() - petBaseY(sizePercent); // 转换为精灵内 Y（面板顶部有跳跃缓冲）
         if (spriteY < 0 || spriteY >= spriteH) {
+            hovering = false;
             frame.hideHoverPanel(); // 落在缓冲区：不触发
             return;
         }
         if (spriteY < spriteH / 4) {
+            hovering = true;
             frame.showStatsOverlay(); // 头部
         } else if (spriteY >= spriteH * 3 / 4) {
+            hovering = true;
             frame.showCardOverlay(); // 脚部
         } else {
+            hovering = false;
             frame.hideHoverPanel(); // 中部
         }
     }
@@ -404,6 +437,95 @@ public final class PetPanel extends JPanel {
         previousClickAt = lastClickAt;
         service.setPhase(PetActivityPhase.DONE, null, PetDialogue.random("click"));
         frame.showBubble(PetDialogue.random("click"));
+    }
+
+    // === 自动溜达：让鲸鱼娘在屏幕上自由左右跑动 ===
+
+    /** 每 {@value #ROAM_TICK_MS}ms 推进一次溜达状态机：决定何时开跑、往哪跑、撞墙转向。 */
+    private void tickRoam() {
+        long now = System.currentTimeMillis();
+        if (frame == null || !frame.isPetVisible()) {
+            roaming = false;
+            return;
+        }
+        if (pointerDown || hovering) return; // 交互期间原地待命
+        PetStateSnapshot snap = service.render();
+        PetActivityPhase phase = snap.phase();
+        boolean canRoam = phase == PetActivityPhase.IDLE || phase == PetActivityPhase.THINKING;
+        if (roaming) {
+            if (!canRoam) {
+                stopRoamInternal();
+                return;
+            }
+            PetAnimation want = roamDir > 0 ? PetAnimation.RUNNING_RIGHT : PetAnimation.RUNNING_LEFT;
+            if (overrideAnimation != want) setRoamAnim(want);
+            moveStep();
+            if (now >= roamUntil) stopRoamInternal();
+        } else if (now >= nextRoamAt) {
+            if (canRoam) startRoam(now);
+            else nextRoamAt = now + randomBetween(4000, 10000);
+        }
+    }
+
+    /** 开始一次溜达：随机方向与持续时长，切到对应方向的奔跑动画。 */
+    private void startRoam(long now) {
+        roaming = true;
+        roamDir = randomSign();
+        roamUntil = now + randomBetween(2500, 5500);
+        setRoamAnim(roamDir > 0 ? PetAnimation.RUNNING_RIGHT : PetAnimation.RUNNING_LEFT);
+    }
+
+    /** 设置溜达用的方向奔跑动画（覆盖状态机，直到溜达结束）。 */
+    private void setRoamAnim(PetAnimation anim) {
+        overrideAnimation = anim;
+        overrideUntil = Long.MAX_VALUE;
+        currentAnimation.set(anim);
+        frameIndex = 0;
+        frameStartedAt = System.currentTimeMillis();
+        themeRef.set(service.currentTheme());
+        currentDurations.set(safeDurations(service.currentTheme(), anim, PetResources.rowOf(anim)));
+        repaint();
+    }
+
+    /** 真正移动窗口：按方向平移，撞到屏幕左右边界则反弹转向。 */
+    private void moveStep() {
+        Point p = frame.getLocation();
+        int size = frame.currentSizePercent();
+        int w = PetSettingsState.scaledWidth(size);
+        Rectangle screen = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+        int nx = p.x + roamDir * ROAM_SPEED;
+        if (nx < screen.x) {
+            nx = screen.x;
+            roamDir = 1;
+        } else if (nx + w > screen.x + screen.width) {
+            nx = screen.x + screen.width - w;
+            roamDir = -1;
+        }
+        frame.setLocation(nx, p.y);
+    }
+
+    /** 停止溜达，交还动画控制权给状态机，并安排一段时间后再溜达。 */
+    private void stopRoamInternal() {
+        roaming = false;
+        overrideAnimation = null;
+        overrideUntil = 0;
+        nextRoamAt = System.currentTimeMillis() + randomBetween(5000, 12000);
+    }
+
+    /** 外部（拖拽 / 回原位）调用的停止入口：立即停跑并延后下次溜达。 */
+    void stopRoaming() {
+        roaming = false;
+        overrideAnimation = null;
+        overrideUntil = 0;
+        nextRoamAt = System.currentTimeMillis() + randomBetween(8000, 18000);
+    }
+
+    private static int randomBetween(int lo, int hi) {
+        return lo + ThreadLocalRandom.current().nextInt(hi - lo + 1);
+    }
+
+    private static int randomSign() {
+        return ThreadLocalRandom.current().nextBoolean() ? 1 : -1;
     }
 
     /**
