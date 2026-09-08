@@ -529,6 +529,7 @@ public final class PetHoverPanel {
         label.setFont(label.getFont().deriveFont(Font.BOLD, 11f));
         label.setHorizontalAlignment(SwingConstants.RIGHT);
         label.setPreferredSize(new Dimension(42, label.getPreferredSize().height));
+        label.setMinimumSize(label.getPreferredSize());
         return label;
     }
 
@@ -550,6 +551,7 @@ public final class PetHoverPanel {
         cap.setFont(cap.getFont().deriveFont(Font.PLAIN, 10f));
         cap.setHorizontalAlignment(SwingConstants.RIGHT);
         cap.setPreferredSize(new Dimension(42, cap.getPreferredSize().height));
+        cap.setMinimumSize(cap.getPreferredSize());
         gbc.gridx = 0;
         gbc.weightx = 0;
         gbc.fill = GridBagConstraints.NONE;
@@ -743,8 +745,9 @@ public final class PetHoverPanel {
                 g2.setComposite(java.awt.AlphaComposite.Clear);
                 g2.fillRect(0, 0, getWidth(), getHeight());
                 g2.setComposite(java.awt.AlphaComposite.SrcOver);
+                // 帮助图标不单独填充背景，让胶囊底色自然透出，保持与胶囊背景一致
                 g2.setColor(hovering ? BTN_HOVER : CARD_BORDER);
-                g2.fillOval(0, 0, getWidth() - 1, getHeight() - 1);
+                g2.drawOval(0, 0, getWidth() - 1, getHeight() - 1);
                 g2.setColor(BTN_TEXT);
                 g2.setFont(g2.getFont().deriveFont(Font.BOLD, 9.5f));
                 FontMetrics fm = g2.getFontMetrics();

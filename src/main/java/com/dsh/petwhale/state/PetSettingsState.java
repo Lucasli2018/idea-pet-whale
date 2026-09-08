@@ -19,6 +19,7 @@ import org.jetbrains.annotations.Nullable;
  *   <li>{@code themeName} —— 默认主题名（{@link PetTheme} 枚举名）</li>
  *   <li>{@code startHidden} —— 启动时是否直接收起（隐藏后无召唤按钮，需到设置页重新显示）</li>
  *   <li>{@code roamSpeed} —— 自动溜达行走速度（像素/帧，{@code 1~8}，默认 {@code 3} ≈ 75px/s）</li>
+ *   <li>{@code roamIntervalSec} —— 自动溜达出发间隔（秒，{@code 1~30}，默认 {@code 5}）：控制两次跑步之间的休息时长</li>
  * </ul>
  *
  * <p>所有取值在写入端（setter）统一 clamp，保证从 XML 反序列化进来的脏数据
@@ -48,6 +49,13 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
     /** 默认溜达速度（像素/帧，约 75px/s，从容小碎步） */
     public static final int DEFAULT_ROAM_SPEED = 3;
 
+    /** 跑步出发间隔下限（秒）：两次自动溜达之间的最短等待 */
+    public static final int MIN_ROAM_INTERVAL_SEC = 1;
+    /** 跑步出发间隔上限（秒） */
+    public static final int MAX_ROAM_INTERVAL_SEC = 30;
+    /** 默认跑步出发间隔（秒） */
+    public static final int DEFAULT_ROAM_INTERVAL_SEC = 5;
+
     /** 默认缩放比例 */
     public static final int DEFAULT_SIZE_PERCENT = 100;
     /** 默认不透明度 */
@@ -62,6 +70,8 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
     private boolean startHidden = false;
     /** 自动溜达行走速度（像素/帧，{@code 1~8}，默认 {@code 3} ≈ 75px/s） */
     private int roamSpeed = DEFAULT_ROAM_SPEED;
+    /** 自动溜达出发间隔（秒，{@code 1~30}，默认 {@code 5}）：控制两次跑步之间的休息时长 */
+    private int roamIntervalSec = DEFAULT_ROAM_INTERVAL_SEC;
     /** 久坐关怀提醒（连续编码 60 分钟提醒喝水/起身），默认开启 */
     private boolean careEnabled = true;
     /** 是否显示状态装饰（喷水、小鱼等表情气泡装饰），默认开启 */
@@ -129,6 +139,11 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
     public int getRoamSpeed() { return roamSpeed; }
 
     public void setRoamSpeed(int value) { this.roamSpeed = clampRoamSpeed(value); }
+
+    /** 自动溜达出发间隔（秒，已 clamp 到 [{@link #MIN_ROAM_INTERVAL_SEC}, {@link #MAX_ROAM_INTERVAL_SEC}]）。 */
+    public int getRoamIntervalSec() { return roamIntervalSec; }
+
+    public void setRoamIntervalSec(int value) { this.roamIntervalSec = clampRoamIntervalSec(value); }
 
     /** 久坐关怀提醒（连续编码 60 分钟提醒喝水/起身），默认开启。 */
     public boolean isCareEnabled() { return careEnabled; }
@@ -250,6 +265,13 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
         return Math.max(MIN_ROAM_SPEED, Math.min(MAX_ROAM_SPEED, value));
     }
 
+    /**
+     * 跑步出发间隔 clamp。纯函数，测试直连。
+     */
+    public static int clampRoamIntervalSec(int value) {
+        return Math.max(MIN_ROAM_INTERVAL_SEC, Math.min(MAX_ROAM_INTERVAL_SEC, value));
+    }
+
     /** 按缩放比例算桌宠显示宽度（像素）。 */
     public static int scaledWidth(int sizePercent) {
         return Math.max(1, com.dsh.petwhale.resource.PetManifest.CELL_WIDTH * clampSizePercent(sizePercent) / 100);
@@ -288,6 +310,7 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
         setThemeName(state.themeName);
         this.startHidden = state.startHidden;
         setRoamSpeed(state.roamSpeed);
+        setRoamIntervalSec(state.roamIntervalSec);
         this.careEnabled = state.careEnabled;
         this.showDecorations = state.showDecorations;
         setPetName(state.petName);

@@ -118,6 +118,8 @@ public final class PetPanel extends JPanel {
     private boolean hovering;
     /** 溜达速度预览覆盖值（设置页拖动滑块时写入）；-1 = 未预览，用持久化值 */
     private volatile int roamSpeedOverride = -1;
+    /** 溜达出发间隔预览覆盖值（设置页拖动滑块时写入，单位秒）；-1 = 未预览，用持久化值 */
+    private volatile int roamIntervalOverride = -1;
 
     public PetPanel(@NotNull PetStateService service, @NotNull PetFrame frame) {
         this.service = service;
@@ -260,8 +262,8 @@ public final class PetPanel extends JPanel {
         });
         idleTimer.start();
 
-        // === 自动溜达定时器：随机间隔后让鲸鱼娘在屏幕上自由左右跑动 ===
-        nextRoamAt = System.currentTimeMillis() + randomBetween(3000, 7000);
+        // === 自动溜达定时器：按设置里的出发间隔让鲸鱼娘自由左右跑动 ===
+        nextRoamAt = System.currentTimeMillis() + nextRoamDelayMs(1500);
         Timer roamTimer = new Timer(ROAM_TICK_MS, e -> tickRoam());
         roamTimer.start();
 
@@ -485,7 +487,7 @@ public final class PetPanel extends JPanel {
             if (now >= roamUntil) stopRoamInternal();
         } else if (now >= nextRoamAt) {
             if (canRoam) startRoam(now);
-            else nextRoamAt = now + randomBetween(3000, 7000);
+            else nextRoamAt = now + nextRoamDelayMs(1500);
         }
     }
 
@@ -546,17 +548,36 @@ public final class PetPanel extends JPanel {
         return v < 1 ? PetSettingsState.DEFAULT_ROAM_SPEED : v;
     }
 
+    /** 当前生效的溜达出发间隔（秒）：预览覆盖优先，否则取持久化设置值（保底默认 5）。 */
+    private int currentRoamIntervalSec() {
+        int v = roamIntervalOverride >= 1 ? roamIntervalOverride
+                : (settings != null ? settings.getRoamIntervalSec() : PetSettingsState.DEFAULT_ROAM_INTERVAL_SEC);
+        return v < 1 ? PetSettingsState.DEFAULT_ROAM_INTERVAL_SEC : v;
+    }
+
     /** 设置页实时预览：覆盖溜达速度（{@code -1} 取消覆盖，恢复用持久化值）。 */
     void setRoamSpeed(int value) {
         roamSpeedOverride = value;
     }
 
-    /** 停止溜达，交还动画控制权给状态机，并安排一段时间后再溜达。 */
+    /** 设置页实时预览：覆盖溜达出发间隔（{@code -1} 取消覆盖，恢复用持久化值）。 */
+    void setRoamInterval(int value) {
+        roamIntervalOverride = value;
+    }
+
+    /** 基于当前出发间隔生成下一次开跑等待毫秒数（jitter 控制随机波动幅度）。 */
+    private long nextRoamDelayMs(int jitter) {
+        long base = currentRoamIntervalSec() * 1000L;
+        long delta = randomBetween(-jitter, jitter);
+        return Math.max(1000L, base + delta);
+    }
+
+    /** 停止溜达，交还动画控制权给状态机，并按设置的出发间隔安排下一次开跑。 */
     private void stopRoamInternal() {
         roaming = false;
         overrideAnimation = null;
         overrideUntil = 0;
-        nextRoamAt = System.currentTimeMillis() + randomBetween(4000, 9000);
+        nextRoamAt = System.currentTimeMillis() + nextRoamDelayMs(1500);
     }
 
     /** 外部（拖拽 / 回原位）调用的停止入口：立即停跑并延后下次溜达。 */
@@ -564,7 +585,7 @@ public final class PetPanel extends JPanel {
         roaming = false;
         overrideAnimation = null;
         overrideUntil = 0;
-        nextRoamAt = System.currentTimeMillis() + randomBetween(6000, 14000);
+        nextRoamAt = System.currentTimeMillis() + nextRoamDelayMs(3000);
     }
 
     private static int randomBetween(int lo, int hi) {

@@ -67,6 +67,8 @@ public final class PetSettingsConfigurable implements Configurable {
     private JCheckBox careCheck;
     private JSlider roamSlider;
     private JLabel roamValue;
+    private JSlider intervalSlider;
+    private JLabel intervalValue;
 
     /** 当前主题配色方案（设置页卡片/强调色/链接） */
     private ThemePalette palette;
@@ -85,6 +87,7 @@ public final class PetSettingsConfigurable implements Configurable {
     private boolean initialShowDecorations;
     private boolean initialCareEnabled;
     private int initialRoamSpeed;
+    private int initialRoamInterval;
 
     @Override
     public @NlsContexts.ConfigurableName String getDisplayName() {
@@ -134,6 +137,8 @@ public final class PetSettingsConfigurable implements Configurable {
         JPanel behaviorCard = new CardPanel("行为", "控制鲸鱼娘的自动溜达与节奏。");
         behaviorCard.add(buildItem("溜达速度", "",
                 buildRoamControl(), () -> setRoamSpeed(PetSettingsState.DEFAULT_ROAM_SPEED)));
+        behaviorCard.add(buildItem("出发间隔", "",
+                buildIntervalControl(), () -> setInterval(PetSettingsState.DEFAULT_ROAM_INTERVAL_SEC)));
         content.add(behaviorCard);
 
         content.add(Box.createVerticalStrut(12));
@@ -161,6 +166,7 @@ public final class PetSettingsConfigurable implements Configurable {
         initialShowDecorations = state.isShowDecorations();
         initialCareEnabled = state.isCareEnabled();
         initialRoamSpeed = state.getRoamSpeed();
+        initialRoamInterval = state.getRoamIntervalSec();
         // 如果持久化值与服务运行时不一致，以持久化值为准
         service.setShowDecorations(initialShowDecorations);
     }
@@ -270,6 +276,30 @@ public final class PetSettingsConfigurable implements Configurable {
         return row;
     }
 
+    /** "出发间隔"控件：滑块 1~30 秒，控制两次自动溜达之间的休息时长。 */
+    private JComponent buildIntervalControl() {
+        intervalSlider = new JSlider(
+                PetSettingsState.MIN_ROAM_INTERVAL_SEC,
+                PetSettingsState.MAX_ROAM_INTERVAL_SEC,
+                initialRoamInterval);
+        intervalSlider.setMajorTickSpacing(5);
+        intervalSlider.setMinorTickSpacing(1);
+        intervalSlider.setPaintTicks(true);
+        intervalSlider.setSnapToTicks(true);
+        intervalValue = new JLabel(initialRoamInterval + "s");
+        intervalValue.setPreferredSize(new Dimension(40, intervalValue.getPreferredSize().height));
+        intervalSlider.addChangeListener(e -> {
+            intervalValue.setText(intervalSlider.getValue() + "s");
+            applyIntervalPreview();
+        });
+
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        row.setOpaque(false);
+        row.add(intervalSlider);
+        row.add(intervalValue);
+        return row;
+    }
+
     /** "回到原位"控件：一个「一键归位」按钮，点击让鲸鱼娘回右下角老家。 */
     private JComponent buildReturnHomeControl() {
         JButton btn = new JButton("一键归位");
@@ -312,6 +342,14 @@ public final class PetSettingsConfigurable implements Configurable {
         PetFrame frame = currentFrame();
         if (frame != null) {
             frame.setRoamSpeedPreview(roamSlider.getValue());
+        }
+    }
+
+    /** 出发间隔实时预览：拖动滑块把间隔透传给桌宠，立即生效、不落盘。 */
+    private void applyIntervalPreview() {
+        PetFrame frame = currentFrame();
+        if (frame != null) {
+            frame.setRoamIntervalPreview(intervalSlider.getValue());
         }
     }
 
@@ -365,6 +403,13 @@ public final class PetSettingsConfigurable implements Configurable {
         applyRoamPreview();
     }
 
+    /** 把出发间隔恢复为默认值（"恢复默认"链接回调），并实时预览。 */
+    private void setInterval(int value) {
+        intervalSlider.setValue(value);
+        intervalValue.setText(value + "s");
+        applyIntervalPreview();
+    }
+
     @Override
     public boolean isModified() {
         if (state == null || sizeSlider == null) return false;
@@ -374,7 +419,8 @@ public final class PetSettingsConfigurable implements Configurable {
                 || (visibleCombo.getSelectedItem() == BooleanOption.ON) == state.isStartHidden()
                 || (decorationsCombo.getSelectedItem() == BooleanOption.ON) != state.isShowDecorations()
                 || careCheck.isSelected() != state.isCareEnabled()
-                || roamSlider.getValue() != state.getRoamSpeed();
+                || roamSlider.getValue() != state.getRoamSpeed()
+                || intervalSlider.getValue() != state.getRoamIntervalSec();
     }
 
     @Override
@@ -390,6 +436,7 @@ public final class PetSettingsConfigurable implements Configurable {
         state.setShowDecorations(decorationsCombo.getSelectedItem() == BooleanOption.ON);
         state.setCareEnabled(careCheck.isSelected());
         state.setRoamSpeed(roamSlider.getValue());
+        state.setRoamIntervalSec(intervalSlider.getValue());
 
         service.setTheme(state.theme());
         service.setShowDecorations(state.isShowDecorations());
@@ -416,6 +463,8 @@ public final class PetSettingsConfigurable implements Configurable {
         careCheck.setSelected(state.isCareEnabled());
         roamSlider.setValue(state.getRoamSpeed());
         roamValue.setText(String.valueOf(state.getRoamSpeed()));
+        intervalSlider.setValue(state.getRoamIntervalSec());
+        intervalValue.setText(state.getRoamIntervalSec() + "s");
 
         service.setTheme(state.theme());
         service.setShowDecorations(state.isShowDecorations());
@@ -450,6 +499,8 @@ public final class PetSettingsConfigurable implements Configurable {
         careCheck = null;
         roamSlider = null;
         roamValue = null;
+        intervalSlider = null;
+        intervalValue = null;
         cards.clear();
         themeLinks.clear();
         root = null;

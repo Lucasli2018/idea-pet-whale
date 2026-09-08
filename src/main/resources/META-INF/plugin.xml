@@ -1,7 +1,7 @@
 <idea-plugin url="https://github.com/zhu1090093659/idea-pet-whale">
     <id>com.dsh.petwhale</id>
     <name>Pet Whale</name>
-    <version>0.0.17</version>
+    <version>0.0.18</version>
     <vendor email="1906859953@qq.com" url="https://github.com/Lucasli2018">lucasli</vendor>
 
     <idea-version since-build="231"/>
@@ -15,6 +15,13 @@
     ]]></description>
 
     <change-notes><![CDATA[
+        <h4>0.0.18（胶囊数值/帮助图标修复 + 跑步出发间隔可控）</h4>
+        <ul>
+            <li><b>胶囊进度条数值显示修复</b>：为数值标签与标签列增加最小尺寸约束，确保亲密度 / 小鱼干 / 点数始终显示在进度条右侧。</li>
+            <li><b>帮助图标背景与胶囊统一</b>：「?」不再单独填充背景色，改为透明底 + 描边，视觉上与胶囊底板融为一体。</li>
+            <li><b>新增「出发间隔」设置</b>：行为卡片增加「出发间隔」滑块（1~30 秒，默认 5 秒），控制两次自动溜达之间的休息时长；支持实时预览、Apply 持久化、恢复默认。</li>
+            <li><b>优化跑步速度调整</b>：溜达速度滑块保持 1~8，设置页内拖动实时透传给桌宠；对应实际移动步长保持 1~8 px/40ms，手感连续可调。</li>
+        </ul>
         <h4>0.0.17（设置页精简：统一配色 + 去除冗余说明）</h4>
         <ul>
             <li><b>「精致版」配色与「原版」保持一致</b>：设置页卡片、强调色、恢复默认链接统一使用海洋蓝配色，切换宠物皮肤时不再跳变为珊瑚橙，视觉上更统一。</li>

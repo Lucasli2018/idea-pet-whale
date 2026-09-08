@@ -6,7 +6,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.dsh</groupId>
     <artifactId>idea-pet-whale</artifactId>
-    <version>0.0.17</version>
+    <version>0.0.18</version>
     <packaging>jar</packaging>
 
     <name>Idea Pet Whale</name>
