@@ -170,6 +170,7 @@ public final class PetHoverPanel {
         titleLabel = new JLabel();
         titleLabel.setForeground(TEXT_SUB);
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.PLAIN, 10f));
+        titleLabel.setHorizontalAlignment(SwingConstants.RIGHT);
         GridBagConstraints pc = new GridBagConstraints();
         pc.gridx = 0;
         pc.gridy = 0;
@@ -186,7 +187,7 @@ public final class PetHoverPanel {
         profileRow.add(titleLabel, pc);
         pc.gridx = 3;
         pc.weightx = 0;
-        pc.insets = new Insets(0, 4, 0, 0);
+        pc.insets = new Insets(0, 2, 0, 0);
         JComponent helpButton = new HelpButton();
         profileRow.add(helpButton, pc);
         profileRow.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -519,29 +520,59 @@ public final class PetHoverPanel {
     }
 
     /**
-     * 彩色数值标签（粗体 11）。固定宽度 + 右对齐：三条数值宽度不同（如 ×0 与 200），
-     * 不锁宽会让行宽参差、进度条跟着错位。
+     * 彩色数值标签（粗体 11）。固定宽度 + 右对齐：三条数值宽度不同（如 ×0 与 500），
+     * 不锁宽会让行宽参差、进度条跟着错位。加宽到 42 保证“×99 / 500”都能放下。
      */
     private static JLabel valueLabel(Color color) {
         JLabel label = new JLabel();
         label.setForeground(color);
         label.setFont(label.getFont().deriveFont(Font.BOLD, 11f));
         label.setHorizontalAlignment(SwingConstants.RIGHT);
-        label.setPreferredSize(new Dimension(36, label.getPreferredSize().height));
+        label.setPreferredSize(new Dimension(42, label.getPreferredSize().height));
         return label;
     }
 
-    /** 一行进度条：灰色标签 + 彩色条 + 彩色数值。行组件 LEFT_ALIGNMENT 对齐（BoxLayout 默认居中会让行左右错位）。 */
+    /**
+     * 一行进度条：标签右对齐 + 进度条左对齐 + 数值右对齐。
+     * 使用 GridBagLayout 让三列严格对齐，避免 FlowLayout 因内容宽度不同而错位。
+     */
     private static JComponent statRow(String caption, JComponent bar, JComponent value) {
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        JPanel row = new JPanel(new GridBagLayout());
         row.setOpaque(false);
         row.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridy = 0;
+
+        // 列0：标签（固定宽，右对齐）
         JLabel cap = new JLabel(caption);
         cap.setForeground(TEXT_SUB);
         cap.setFont(cap.getFont().deriveFont(Font.PLAIN, 10f));
-        row.add(cap);
-        row.add(bar);
-        row.add(value);
+        cap.setHorizontalAlignment(SwingConstants.RIGHT);
+        cap.setPreferredSize(new Dimension(42, cap.getPreferredSize().height));
+        gbc.gridx = 0;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.EAST;
+        gbc.insets = new Insets(0, 0, 0, 6);
+        row.add(cap, gbc);
+
+        // 列1：进度条（横向撑满，左对齐）
+        gbc.gridx = 1;
+        gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.insets = new Insets(0, 0, 0, 6);
+        row.add(bar, gbc);
+
+        // 列2：数值（固定宽，右对齐）
+        gbc.gridx = 2;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.EAST;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        row.add(value, gbc);
+
         return row;
     }
 
