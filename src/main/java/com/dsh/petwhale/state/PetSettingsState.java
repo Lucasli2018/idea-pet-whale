@@ -234,19 +234,40 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
         return true;
     }
 
-    /** 把亲密度换算成等级称号。 */
-    @NotNull
-    public static String intimacyTitle(int intimacy) {
-        if (intimacy < 100) return "素昧平生";
-        if (intimacy < 300) return "一见如故";
-        if (intimacy < 600) return "心意相通";
-        if (intimacy < 1000) return "心有灵犀";
-        return "灵魂伴侣";
+    /**
+     * 称号 / 等级的分界阈值（亲密度达到即进入对应档位，升序）。索引即档位序号。
+     * {@link #intimacyTitle} 与 {@link #intimacyLevel} 共用此表，保证「等级」与「称号」
+     * 永不漂移——不会出现"Lv.1 却配一见如故"的矛盾。
+     */
+    private static final int[] TIER_THRESHOLDS = {0, 100, 300, 600, 1000};
+    /** 与 {@link #TIER_THRESHOLDS} 一一对应的称号（索引即档位）。 */
+    private static final String[] TIER_TITLES = {
+            "素昧平生", "一见如故", "心意相通", "心有灵犀", "灵魂伴侣"
+    };
+
+    /** 把亲密度换算成当前档位索引（0~4）。 */
+    private static int tierIndex(int intimacy) {
+        int v = Math.max(0, intimacy);
+        int idx = 0;
+        for (int i = 0; i < TIER_THRESHOLDS.length; i++) {
+            if (v >= TIER_THRESHOLDS[i]) idx = i;
+            else break;
+        }
+        return idx;
     }
 
-    /** 把亲密度换算成等级：每 200 点升 1 级，从 Lv.1 起算（悬浮框数值条显示用）。 */
+    /** 把亲密度换算成等级称号（与 {@link #intimacyLevel} 同档位）。 */
+    @NotNull
+    public static String intimacyTitle(int intimacy) {
+        return TIER_TITLES[tierIndex(intimacy)];
+    }
+
+    /**
+     * 把亲密度换算成等级：等级与称号档位严格对齐——素昧平生=Lv.1，一见如故=Lv.2，
+     * 心意相通=Lv.3，心有灵犀=Lv.4，灵魂伴侣=Lv.5（悬浮框数值条显示用）。
+     */
     public static int intimacyLevel(int intimacy) {
-        return Math.max(0, intimacy) / 200 + 1;
+        return tierIndex(intimacy) + 1;
     }
 
     /**

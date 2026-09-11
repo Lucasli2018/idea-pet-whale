@@ -35,7 +35,7 @@ DSH Pet Whale 是一个 JetBrains IDEA 平台的桌面宠物插件（Plugin）�
 | 分区悬浮交互层 | 鼠标停在**头部**→头顶数值胶囊（名字 / Lv / 称号 + 亲密度、小鱼干、点数三条彩色渐变进度条，左对齐）；停在**脚部**→紧凑按钮卡片（喂食 / 改名 / 设置 / 隐藏，按钮紧贴文字） |
 | 台词气泡 | 渐变底 + 指向宠物的三角尾巴，淡入下滑出现、2.5s 后淡出；**实时跟随宠物移动**（拖拽时贴着走，贴屏幕边自动翻尾巴），文字居中 |
 | 数值帮助说明 | 胶囊上的"？"按钮，悬停或点击弹出亲密度 / 称号 / 小鱼干 / 点数的玩法说明 |
-| 投喂与成长 | 喂小鱼干（亲密度 +10、点数 +5）；每 200 亲密度升 1 级；称号五阶：素昧平生 → 灵魂伴侣 |
+| 投喂与成长 | 喂小鱼干（亲密度 +10、点数 +5）；等级随称号提升（素昧平生 Lv.1 → 灵魂伴侣 Lv.5）；称号五阶：素昧平生 → 灵魂伴侣 |
 | 久坐关怀 | 连续编码达「关怀间隔」（默认 60 分钟，设置页输入框可改）气泡提醒喝水/起身（可关闭）；深夜自动困倦台词 |
 | 喝水提醒 | 与久坐关怀独立的提醒，默认关闭；开启后按「喝水间隔」（默认 60 分钟，可输入框设置）提醒补水 |
 | 拖拽定位 | 按住桌宠可以拖到屏幕任何位置，位置跨重启记忆 |
@@ -47,7 +47,7 @@ DSH Pet Whale 是一个 JetBrains IDEA 平台的桌面宠物插件（Plugin）�
 
 | 数值 | 规则 |
 |---|---|
-| 亲密度 | 每次喂食 +10；Lv 每 200 点升 1 级（Lv.1 起算）；进度条按当前称号区间折算 |
+| 亲密度 | 每次喂食 +10；等级与称号档位严格对齐（素昧平生 Lv.1 / 一见如故 Lv.2 / 心意相通 Lv.3 / 心有灵犀 Lv.4 / 灵魂伴侣 Lv.5）；进度条按当前称号区间折算 |
 | 称号 | 素昧平生 <100 / 一见如故 100~299 / 心意相通 300~599 / 心有灵犀 600~999 / 灵魂伴侣 1000+ |
 | 小鱼干 | 喂食消耗，初始 20 条；进度条按 99 条满格 |
 | 点数 | 每次喂食 +5 累计；进度条按 500 满格 |
@@ -92,25 +92,25 @@ idle     → idle
 ## 构建
 
 ```sh
-mvn -B -DskipTests=true package          # 产出 target/idea-pet-whale-0.0.15.jar + ...-plugin.zip
-mvn -B test                              # 运行 65 个单元测试
+mvn -B -DskipTests=true package          # 产出 target/idea-pet-whale-0.0.18.jar + ...-plugin.zip
+mvn -B test                              # 运行 69 个单元测试（68 通过，1 跳过）
 mvn -B clean verify                      # 完整验证流水线
 ```
 
-打包后的 zip 结构（`target/idea-pet-whale-0.0.15-plugin.zip`）：
+打包后的 zip 结构（`target/idea-pet-whale-0.0.18-plugin.zip`）：
 
 ```
 idea-pet-whale/
 ├── README.md
 ├── LICENSE
 └── lib/
-    └── idea-pet-whale-0.0.1.jar     ← 内含 META-INF/plugin.xml + images/
+    └── idea-pet-whale-0.0.18.jar     ← 内含 META-INF/plugin.xml + images/
 ```
 
 ## 安装
 
 1. **Settings → Plugins → ⚙ → Install Plugin from Disk…**
-2. 选择 `target/idea-pet-whale-0.0.15-plugin.zip`（或你的发布产物）。
+2. 选择 `target/idea-pet-whale-0.0.18-plugin.zip`（或你的发布产物）。
 4. 重启 IDEA。鲸鱼娘会出现在屏幕右下角，开始她的空闲动画。
 
 ## 仓库结构
@@ -131,7 +131,7 @@ idea-pet-whale/
 │   ├── listener/                                # EditorFactoryListener + VirtualFileListener
 │   ├── ui/                                      # PetFrame（透明始终置顶）+ PetPanel + 悬停面板
 │   └── startup/PetStartupActivity.java          # StartupActivity 启动入口
-└── src/test/java/com/dsh/petwhale/              # 65 个单元测试
+└── src/test/java/com/dsh/petwhale/              # 69 个单元测试
 ```
 
 ## 关键设计决策

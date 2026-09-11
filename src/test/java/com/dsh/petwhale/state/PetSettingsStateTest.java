@@ -236,6 +236,23 @@ public class PetSettingsStateTest {
         assertEquals("灵魂伴侣", PetSettingsState.intimacyTitle(2000));
     }
 
+    @Test
+    public void intimacyLevel_matchesTitles() {
+        // 等级必须与称号档位严格对齐：素昧平生 Lv.1 … 灵魂伴侣 Lv.5
+        // 修复前 intimacyLevel 用"每 200 点升 1 级"，与称号分段（100/300/600/1000）错开，
+        // 会在亲密度=100 时出现"Lv.1 + 一见如故"这种矛盾显示。
+        assertEquals(1, PetSettingsState.intimacyLevel(0));
+        assertEquals(1, PetSettingsState.intimacyLevel(99));
+        assertEquals(2, PetSettingsState.intimacyLevel(100));
+        assertEquals(2, PetSettingsState.intimacyLevel(299));
+        assertEquals(3, PetSettingsState.intimacyLevel(300));
+        assertEquals(3, PetSettingsState.intimacyLevel(599));
+        assertEquals(4, PetSettingsState.intimacyLevel(600));
+        assertEquals(4, PetSettingsState.intimacyLevel(999));
+        assertEquals(5, PetSettingsState.intimacyLevel(1000));
+        assertEquals(5, PetSettingsState.intimacyLevel(2000));
+    }
+
     // === loadState 脏数据收敛 ===
 
     @Test

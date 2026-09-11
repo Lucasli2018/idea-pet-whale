@@ -27,7 +27,7 @@
 | Interactive hover layers | Head zone → stats pill (name / Lv / title + intimacy / fish / points gradient bars); feet zone → compact action card (Feed / Rename / Settings / Hide), buttons hug their labels |
 | Speech bubble | Gradient bubble with a tail pointing at the pet, fade-in slide animation, follows the pet while being dragged, auto fades out after 2.5s |
 | Care stats & help | A "?" button on the stats pill pops up gameplay explanations (intimacy / title / fish / points rules) on hover or click |
-| Feeding & progression | Feed fish (+10 intimacy, +5 points); levels rise every 200 intimacy; titles: 素昧平生 → 灵魂伴侣 |
+| Feeding & progression | Feed fish (+10 intimacy, +5 points); level rises with title tier (素昧平生 Lv.1 → 灵魂伴侣 Lv.5); titles: 素昧平生 → 灵魂伴侣 |
 | Drag-to-move | Hold-drag the pet anywhere on the screen; position persists across restarts |
 | Hide / Summon | Hover panel hides the pet; a small "召唤鲸鱼娘" button stays at the bottom-right |
 | Always-on-top | Transparent borderless `JWindow` floats over every editor and tool window, absent from taskbar / Alt-Tab |
@@ -41,15 +41,15 @@
 ## Build
 
 ```sh
-mvn -B -DskipTests=true package          # produces target/idea-pet-whale-0.0.15.jar + ...-plugin.zip
-mvn -B test                              # runs 65 unit tests
+mvn -B -DskipTests=true package          # produces target/idea-pet-whale-0.0.18.jar + ...-plugin.zip
+mvn -B test                              # runs 69 unit tests (68 pass, 1 skipped)
 mvn -B clean verify                      # full clean verify pipeline
 ```
 
 ## Install
 
 1. **Settings → Plugins → ⚙ → Install Plugin from Disk…**
-2. Pick `target/idea-pet-whale-0.0.15-plugin.zip` (or your release build).
+2. Pick `target/idea-pet-whale-0.0.18-plugin.zip` (or your release build).
 3. Restart IDEA. The whale-girl appears at the bottom-right of the screen.
 
 ## Credits

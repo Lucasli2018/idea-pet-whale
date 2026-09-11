@@ -107,7 +107,7 @@ public final class PetHoverPanel {
     private static final int HELP_HIDE_DELAY_MS = 250;
     /** 帮助弹窗内容：亲密度 / 称号 / 小鱼干 / 点数的玩法说明 */
     private static final String HELP_HTML = "<html><body style='width:230px'>"
-            + "<b><font color='#7EC4FF'>亲密度</font></b>：每次喂食 +10，Lv 每 200 点升 1 级<br>"
+            + "<b><font color='#7EC4FF'>亲密度</font></b>：每次喂食 +10；等级随称号提升（素昧平生 Lv.1 / 一见如故 Lv.2 / 心意相通 Lv.3 / 心有灵犀 Lv.4 / 灵魂伴侣 Lv.5）<br>"
             + "<b><font color='#FF9BC0'>称号</font></b>：素昧平生 &lt;100 / 一见如故 100+ / "
             + "心意相通 300+ / 心有灵犀 600+ / 灵魂伴侣 1000+<br>"
             + "<b><font color='#56A4FF'>小鱼干</font></b>：喂食消耗，初始 20 条，进度按 99 条满格<br>"
