@@ -42,11 +42,16 @@ public final class PetStateService implements Disposable {
     private volatile PetTheme theme = PetTheme.WHALE;
     /** 是否显示状态装饰（喷水、小鱼等表情气泡装饰），运行时标志 */
     private volatile boolean showDecorations = true;
-    /** 久坐关怀顾问（打字活动计时 → 60 分钟提醒休息） */
+    /** 久坐关怀顾问（打字活动计时 → 阈值分钟数提醒休息） */
     private final PetCareAdvisor careAdvisor = new PetCareAdvisor();
+    /** 喝水提醒顾问（与久坐关怀共用同一份打字活动，但阈值与开关独立）。 */
+    private final PetCareAdvisor waterAdvisor = new PetCareAdvisor();
 
     /** 久坐关怀顾问（编辑器打字活动喂数据，关怀定时器周期检查）。 */
     @NotNull public PetCareAdvisor care() { return careAdvisor; }
+
+    /** 喝水提醒顾问（与久坐关怀共用打字活动，独立阈值与开关）。 */
+    @NotNull public PetCareAdvisor water() { return waterAdvisor; }
 
     /**
      * 取当前快照（不触发广播）。供不需要响应、只想读最新状态的场景使用。

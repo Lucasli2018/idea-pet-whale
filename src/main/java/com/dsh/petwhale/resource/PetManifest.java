@@ -28,10 +28,12 @@ public final class PetManifest {
     /** 精灵图总行数（对应 9 个动画） */
     public static final int ROWS = 9;
 
-    /** 默认每行帧数（来自 dsh-pet hatch-pet 契约）。
-     *  顺序与 {@link PetAnimation} 一致：idle=6 / running-right=8 / running-left=8 /
-     *  waving=4 / jumping=5 / failed=8 / waiting=6 / running=6 / review=6。 */
-    public static final int[] DEFAULT_FRAMES = { 6, 8, 8, 4, 5, 8, 6, 6, 6 };
+    /** 默认每行帧数（来自 dsh-pet hatch-pet 契约，已为左右跑动各去掉 1 帧重复尾帧）。
+     *  顺序与 {@link PetAnimation} 一致：idle=6 / running-right=7 / running-left=7 /
+     *  waving=4 / jumping=5 / failed=8 / waiting=6 / running=6 / review=6。
+     *  说明：running-right / running-left 原 8 帧的首尾两帧完全相同，循环回绕时会出现一次
+     *  可见跳变/卡顿，故去掉最后一帧、保留 7 帧，使 0→6→0 的回绕平滑。 */
+    public static final int[] DEFAULT_FRAMES = { 6, 7, 7, 4, 5, 8, 6, 6, 6 };
 
     /** 默认每轨帧时长（毫秒），与精致版 dsh-pet 资源一致。
      *  若 {@code pet.json} 中没显式定义某轨的 durations，则使用此表。 */
@@ -40,9 +42,9 @@ public final class PetManifest {
         TreeMap<PetAnimation, int[]> map = new TreeMap<>();
         // 空闲呼吸：6 帧，每帧约 500-600ms，整体循环约 3 秒
         map.put(PetAnimation.IDLE,          new int[] { 500, 500, 600, 500, 500, 600 });
-        // 左右跑动：8 帧，每帧约 300-400ms，节奏感更强
-        map.put(PetAnimation.RUNNING_RIGHT, new int[] { 300, 300, 300, 300, 300, 300, 300, 300 });
-        map.put(PetAnimation.RUNNING_LEFT,  new int[] { 300, 300, 300, 300, 300, 300, 300, 300 });
+        // 左右跑动：去掉首尾重复的尾帧后剩 7 帧，0→6→0 回绕平滑、无跳变
+        map.put(PetAnimation.RUNNING_RIGHT, new int[] { 300, 300, 300, 300, 300, 300, 300 });
+        map.put(PetAnimation.RUNNING_LEFT,  new int[] { 300, 300, 300, 300, 300, 300, 300 });
         // 挥手：4 帧，约 1.8 秒一个循环
         map.put(PetAnimation.WAVING,        new int[] { 450, 450, 450, 450 });
         // 跳跃：5 帧

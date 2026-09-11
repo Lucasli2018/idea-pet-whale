@@ -55,6 +55,26 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
     public static final int MAX_ROAM_INTERVAL_SEC = 30;
     /** 默认跑步出发间隔（秒） */
     public static final int DEFAULT_ROAM_INTERVAL_SEC = 5;
+    /**
+     * 是否开启自动溜达（左右跑动）。默认关闭——桌宠默认安静待在角落，
+     * 需要时在设置页「行为 → 自动溜达」打开，并可在「出发间隔」里设每次开跑的等待秒数。
+     */
+    public static final boolean DEFAULT_ROAM_ENABLED = false;
+
+    /** 久坐关怀提醒间隔下限（分钟） */
+    public static final int MIN_CARE_INTERVAL_MIN = 1;
+    /** 久坐关怀提醒间隔上限（分钟） */
+    public static final int MAX_CARE_INTERVAL_MIN = 600;
+    /** 默认久坐关怀提醒间隔（分钟，连续编码满此值提醒休息/喝水） */
+    public static final int DEFAULT_CARE_INTERVAL_MIN = 60;
+    /** 默认是否开启喝水提醒（与久坐关怀独立，默认关闭） */
+    public static final boolean DEFAULT_WATER_ENABLED = false;
+    /** 喝水提醒间隔下限（分钟） */
+    public static final int MIN_WATER_INTERVAL_MIN = 1;
+    /** 喝水提醒间隔上限（分钟） */
+    public static final int MAX_WATER_INTERVAL_MIN = 600;
+    /** 默认喝水提醒间隔（分钟） */
+    public static final int DEFAULT_WATER_INTERVAL_MIN = 60;
 
     /** 默认缩放比例 */
     public static final int DEFAULT_SIZE_PERCENT = 100;
@@ -72,8 +92,16 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
     private int roamSpeed = DEFAULT_ROAM_SPEED;
     /** 自动溜达出发间隔（秒，{@code 1~30}，默认 {@code 5}）：控制两次跑步之间的休息时长 */
     private int roamIntervalSec = DEFAULT_ROAM_INTERVAL_SEC;
-    /** 久坐关怀提醒（连续编码 60 分钟提醒喝水/起身），默认开启 */
+    /** 是否开启自动溜达（左右跑动），默认关闭 */
+    private boolean roamEnabled = DEFAULT_ROAM_ENABLED;
+    /** 久坐关怀提醒（连续编码达阈值分钟数提醒喝水/起身），默认开启 */
     private boolean careEnabled = true;
+    /** 久坐关怀提醒间隔（分钟，{@code 1~600}，默认 {@code 60}）：连续编码满此值提醒一次 */
+    private int careIntervalMin = DEFAULT_CARE_INTERVAL_MIN;
+    /** 是否开启喝水提醒（与久坐关怀独立、默认关闭；开启后按 waterIntervalMin 提醒） */
+    private boolean waterEnabled = DEFAULT_WATER_ENABLED;
+    /** 喝水提醒间隔（分钟，{@code 1~600}，默认 {@code 60}）：连续编码满此值提醒一次 */
+    private int waterIntervalMin = DEFAULT_WATER_INTERVAL_MIN;
     /** 是否显示状态装饰（喷水、小鱼等表情气泡装饰），默认开启 */
     private boolean showDecorations = true;
 
@@ -140,15 +168,35 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
 
     public void setRoamSpeed(int value) { this.roamSpeed = clampRoamSpeed(value); }
 
+    /** 是否开启自动溜达（左右跑动），默认关闭。 */
+    public boolean isRoamEnabled() { return roamEnabled; }
+
+    public void setRoamEnabled(boolean value) { this.roamEnabled = value; }
+
     /** 自动溜达出发间隔（秒，已 clamp 到 [{@link #MIN_ROAM_INTERVAL_SEC}, {@link #MAX_ROAM_INTERVAL_SEC}]）。 */
     public int getRoamIntervalSec() { return roamIntervalSec; }
 
     public void setRoamIntervalSec(int value) { this.roamIntervalSec = clampRoamIntervalSec(value); }
 
-    /** 久坐关怀提醒（连续编码 60 分钟提醒喝水/起身），默认开启。 */
+    /** 久坐关怀提醒（连续编码达阈值分钟数提醒喝水/起身），默认开启。 */
     public boolean isCareEnabled() { return careEnabled; }
 
     public void setCareEnabled(boolean value) { this.careEnabled = value; }
+
+    /** 久坐关怀提醒间隔（分钟，已 clamp 到 [{@link #MIN_CARE_INTERVAL_MIN}, {@link #MAX_CARE_INTERVAL_MIN}]）。 */
+    public int getCareIntervalMin() { return careIntervalMin; }
+
+    public void setCareIntervalMin(int value) { this.careIntervalMin = clampCareIntervalMin(value); }
+
+    /** 是否开启喝水提醒（与久坐关怀独立的提醒），默认关闭。 */
+    public boolean isWaterEnabled() { return waterEnabled; }
+
+    public void setWaterEnabled(boolean value) { this.waterEnabled = value; }
+
+    /** 喝水提醒间隔（分钟，已 clamp 到 [{@link #MIN_WATER_INTERVAL_MIN}, {@link #MAX_WATER_INTERVAL_MIN}]）。 */
+    public int getWaterIntervalMin() { return waterIntervalMin; }
+
+    public void setWaterIntervalMin(int value) { this.waterIntervalMin = clampWaterIntervalMin(value); }
 
     /** 是否显示状态装饰（喷水、小鱼等表情气泡装饰）。 */
     public boolean isShowDecorations() { return showDecorations; }
@@ -272,6 +320,20 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
         return Math.max(MIN_ROAM_INTERVAL_SEC, Math.min(MAX_ROAM_INTERVAL_SEC, value));
     }
 
+    /**
+     * 久坐关怀提醒间隔 clamp（分钟）。纯函数，测试直连。
+     */
+    public static int clampCareIntervalMin(int value) {
+        return Math.max(MIN_CARE_INTERVAL_MIN, Math.min(MAX_CARE_INTERVAL_MIN, value));
+    }
+
+    /**
+     * 喝水提醒间隔 clamp（分钟）。纯函数，测试直连。
+     */
+    public static int clampWaterIntervalMin(int value) {
+        return Math.max(MIN_WATER_INTERVAL_MIN, Math.min(MAX_WATER_INTERVAL_MIN, value));
+    }
+
     /** 按缩放比例算桌宠显示宽度（像素）。 */
     public static int scaledWidth(int sizePercent) {
         return Math.max(1, com.dsh.petwhale.resource.PetManifest.CELL_WIDTH * clampSizePercent(sizePercent) / 100);
@@ -311,7 +373,11 @@ public final class PetSettingsState implements PersistentStateComponent<PetSetti
         this.startHidden = state.startHidden;
         setRoamSpeed(state.roamSpeed);
         setRoamIntervalSec(state.roamIntervalSec);
+        this.roamEnabled = state.roamEnabled;
         this.careEnabled = state.careEnabled;
+        setCareIntervalMin(state.careIntervalMin);
+        this.waterEnabled = state.waterEnabled;
+        setWaterIntervalMin(state.waterIntervalMin);
         this.showDecorations = state.showDecorations;
         setPetName(state.petName);
         this.intimacy = Math.max(0, state.intimacy);

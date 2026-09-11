@@ -21,11 +21,14 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
+import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
+import java.awt.event.FocusAdapter;
 import javax.swing.plaf.basic.BasicButtonUI;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.event.FocusEvent;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
@@ -67,8 +70,11 @@ public final class PetSettingsConfigurable implements Configurable {
     private JCheckBox careCheck;
     private JSlider roamSlider;
     private JLabel roamValue;
-    private JSlider intervalSlider;
-    private JLabel intervalValue;
+    private JCheckBox roamCheck;
+    private JTextField intervalField;
+    private JTextField careIntervalField;
+    private JCheckBox waterCheck;
+    private JTextField waterIntervalField;
 
     /** 当前主题配色方案（设置页卡片/强调色/链接） */
     private ThemePalette palette;
@@ -87,7 +93,11 @@ public final class PetSettingsConfigurable implements Configurable {
     private boolean initialShowDecorations;
     private boolean initialCareEnabled;
     private int initialRoamSpeed;
+    private boolean initialRoamEnabled;
     private int initialRoamInterval;
+    private int initialCareInterval;
+    private boolean initialWaterEnabled;
+    private int initialWaterInterval;
 
     @Override
     public @NlsContexts.ConfigurableName String getDisplayName() {
@@ -135,9 +145,11 @@ public final class PetSettingsConfigurable implements Configurable {
 
         // === 行为 ===
         JPanel behaviorCard = new CardPanel("行为", "控制鲸鱼娘的自动溜达与节奏。");
+        behaviorCard.add(buildItem("自动溜达", "开启后空闲时左右跑动（默认关闭）",
+                buildRoamEnabledControl(), () -> setRoamEnabled(PetSettingsState.DEFAULT_ROAM_ENABLED)));
         behaviorCard.add(buildItem("溜达速度", "",
                 buildRoamControl(), () -> setRoamSpeed(PetSettingsState.DEFAULT_ROAM_SPEED)));
-        behaviorCard.add(buildItem("出发间隔", "",
+        behaviorCard.add(buildItem("出发间隔", "两次跑动之间的休息秒数",
                 buildIntervalControl(), () -> setInterval(PetSettingsState.DEFAULT_ROAM_INTERVAL_SEC)));
         content.add(behaviorCard);
 
@@ -147,6 +159,12 @@ public final class PetSettingsConfigurable implements Configurable {
         JPanel careCard = new CardPanel("关怀", "久坐提醒与休息建议。");
         careCard.add(buildItem("久坐关怀", "",
                 buildCareControl(), () -> setCareEnabled(true)));
+        careCard.add(buildItem("关怀间隔", "连续编码多少分钟提醒一次",
+                buildCareIntervalControl(), () -> setCareInterval(PetSettingsState.DEFAULT_CARE_INTERVAL_MIN)));
+        careCard.add(buildItem("喝水提醒", "与久坐关怀独立的喝水提示",
+                buildWaterControl(), () -> setWaterEnabled(PetSettingsState.DEFAULT_WATER_ENABLED)));
+        careCard.add(buildItem("喝水间隔", "连续编码多少分钟提醒一次",
+                buildWaterIntervalControl(), () -> setWaterInterval(PetSettingsState.DEFAULT_WATER_INTERVAL_MIN)));
         content.add(careCard);
 
         content.add(Box.createVerticalGlue());
@@ -166,7 +184,11 @@ public final class PetSettingsConfigurable implements Configurable {
         initialShowDecorations = state.isShowDecorations();
         initialCareEnabled = state.isCareEnabled();
         initialRoamSpeed = state.getRoamSpeed();
+        initialRoamEnabled = state.isRoamEnabled();
         initialRoamInterval = state.getRoamIntervalSec();
+        initialCareInterval = state.getCareIntervalMin();
+        initialWaterEnabled = state.isWaterEnabled();
+        initialWaterInterval = state.getWaterIntervalMin();
         // 如果持久化值与服务运行时不一致，以持久化值为准
         service.setShowDecorations(initialShowDecorations);
     }
@@ -252,6 +274,14 @@ public final class PetSettingsConfigurable implements Configurable {
         return careCheck;
     }
 
+    /** "自动溜达"控件：开关（默认关闭），开启后空闲时鲸鱼娘才会左右跑动。 */
+    private JComponent buildRoamEnabledControl() {
+        roamCheck = new JCheckBox("开启自动溜达");
+        roamCheck.setSelected(initialRoamEnabled);
+        roamCheck.setOpaque(false);
+        return roamCheck;
+    }
+
     /** "溜达速度"控件：滑块 1~8，拖动实时预览，配右侧数值标签。 */
     private JComponent buildRoamControl() {
         roamSlider = new JSlider(
@@ -276,28 +306,93 @@ public final class PetSettingsConfigurable implements Configurable {
         return row;
     }
 
-    /** "出发间隔"控件：滑块 1~30 秒，控制两次自动溜达之间的休息时长。 */
+    /** "出发间隔"控件：数字输入框（秒，1~30），回车/失焦实时预览溜达节奏。 */
     private JComponent buildIntervalControl() {
-        intervalSlider = new JSlider(
-                PetSettingsState.MIN_ROAM_INTERVAL_SEC,
-                PetSettingsState.MAX_ROAM_INTERVAL_SEC,
-                initialRoamInterval);
-        intervalSlider.setMajorTickSpacing(5);
-        intervalSlider.setMinorTickSpacing(1);
-        intervalSlider.setPaintTicks(true);
-        intervalSlider.setSnapToTicks(true);
-        intervalValue = new JLabel(initialRoamInterval + "s");
-        intervalValue.setPreferredSize(new Dimension(40, intervalValue.getPreferredSize().height));
-        intervalSlider.addChangeListener(e -> {
-            intervalValue.setText(intervalSlider.getValue() + "s");
-            applyIntervalPreview();
+        intervalField = new JTextField(String.valueOf(initialRoamInterval), 5);
+        intervalField.setHorizontalAlignment(JTextField.RIGHT);
+        Runnable commit = this::applyIntervalPreview;
+        intervalField.addActionListener(e -> commit.run());
+        intervalField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent e) {
+                commit.run();
+            }
         });
+        JLabel unit = new JLabel("秒");
+        unit.setForeground(DESC_TEXT);
 
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         row.setOpaque(false);
-        row.add(intervalSlider);
-        row.add(intervalValue);
+        row.add(intervalField);
+        row.add(unit);
         return row;
+    }
+
+    /** "关怀间隔"控件：数字输入框（分钟，1~600）。 */
+    private JComponent buildCareIntervalControl() {
+        careIntervalField = new JTextField(String.valueOf(initialCareInterval), 5);
+        careIntervalField.setHorizontalAlignment(JTextField.RIGHT);
+        careIntervalField.addActionListener(e -> { /* 关怀间隔按时生效，无需额外预览 */ });
+        careIntervalField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent e) {
+                // 仅在失焦时规整显示，避免输入过程中跳变
+                int v = parseField(careIntervalField,
+                        PetSettingsState.MIN_CARE_INTERVAL_MIN, PetSettingsState.MAX_CARE_INTERVAL_MIN,
+                        PetSettingsState.DEFAULT_CARE_INTERVAL_MIN);
+                careIntervalField.setText(String.valueOf(v));
+            }
+        });
+        JLabel unit = new JLabel("分钟");
+        unit.setForeground(DESC_TEXT);
+
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        row.setOpaque(false);
+        row.add(careIntervalField);
+        row.add(unit);
+        return row;
+    }
+
+    /** "喝水提醒"控件：开关（默认关闭）。 */
+    private JComponent buildWaterControl() {
+        waterCheck = new JCheckBox("开启喝水提醒");
+        waterCheck.setSelected(initialWaterEnabled);
+        waterCheck.setOpaque(false);
+        return waterCheck;
+    }
+
+    /** "喝水间隔"控件：数字输入框（分钟，1~600）。 */
+    private JComponent buildWaterIntervalControl() {
+        waterIntervalField = new JTextField(String.valueOf(initialWaterInterval), 5);
+        waterIntervalField.setHorizontalAlignment(JTextField.RIGHT);
+        waterIntervalField.addActionListener(e -> { /* 喝水间隔按时生效，无需额外预览 */ });
+        waterIntervalField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent e) {
+                int v = parseField(waterIntervalField,
+                        PetSettingsState.MIN_WATER_INTERVAL_MIN, PetSettingsState.MAX_WATER_INTERVAL_MIN,
+                        PetSettingsState.DEFAULT_WATER_INTERVAL_MIN);
+                waterIntervalField.setText(String.valueOf(v));
+            }
+        });
+        JLabel unit = new JLabel("分钟");
+        unit.setForeground(DESC_TEXT);
+
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        row.setOpaque(false);
+        row.add(waterIntervalField);
+        row.add(unit);
+        return row;
+    }
+
+    /** 从数字输入框解析并 clamp 为整数（非法输入回退 fallback）。 */
+    private static int parseField(JTextField field, int min, int max, int fallback) {
+        try {
+            int v = Integer.parseInt(field.getText().trim());
+            return Math.max(min, Math.min(max, v));
+        } catch (NumberFormatException ex) {
+            return fallback;
+        }
     }
 
     /** "回到原位"控件：一个「一键归位」按钮，点击让鲸鱼娘回右下角老家。 */
@@ -345,11 +440,15 @@ public final class PetSettingsConfigurable implements Configurable {
         }
     }
 
-    /** 出发间隔实时预览：拖动滑块把间隔透传给桌宠，立即生效、不落盘。 */
+    /** 出发间隔实时预览：输入框回车/失焦时把间隔透传给桌宠，立即生效、不落盘。 */
     private void applyIntervalPreview() {
+        int v = parseField(intervalField,
+                PetSettingsState.MIN_ROAM_INTERVAL_SEC, PetSettingsState.MAX_ROAM_INTERVAL_SEC,
+                PetSettingsState.DEFAULT_ROAM_INTERVAL_SEC);
+        intervalField.setText(String.valueOf(v)); // 规整非法输入
         PetFrame frame = currentFrame();
         if (frame != null) {
-            frame.setRoamIntervalPreview(intervalSlider.getValue());
+            frame.setRoamIntervalPreview(v);
         }
     }
 
@@ -396,6 +495,10 @@ public final class PetSettingsConfigurable implements Configurable {
         careCheck.setSelected(enabled);
     }
 
+    private void setRoamEnabled(boolean enabled) {
+        roamCheck.setSelected(enabled);
+    }
+
     /** 把溜达速度恢复为默认值（"恢复默认"链接回调），并实时预览。 */
     private void setRoamSpeed(int value) {
         roamSlider.setValue(value);
@@ -405,22 +508,48 @@ public final class PetSettingsConfigurable implements Configurable {
 
     /** 把出发间隔恢复为默认值（"恢复默认"链接回调），并实时预览。 */
     private void setInterval(int value) {
-        intervalSlider.setValue(value);
-        intervalValue.setText(value + "s");
+        intervalField.setText(String.valueOf(value));
         applyIntervalPreview();
+    }
+
+    /** 把关怀间隔恢复为默认值。 */
+    private void setCareInterval(int value) {
+        careIntervalField.setText(String.valueOf(value));
+    }
+
+    /** 把喝水提醒间隔恢复为默认值。 */
+    private void setWaterInterval(int value) {
+        waterIntervalField.setText(String.valueOf(value));
+    }
+
+    private void setWaterEnabled(boolean enabled) {
+        waterCheck.setSelected(enabled);
     }
 
     @Override
     public boolean isModified() {
         if (state == null || sizeSlider == null) return false;
+        int interval = parseField(intervalField,
+                PetSettingsState.MIN_ROAM_INTERVAL_SEC, PetSettingsState.MAX_ROAM_INTERVAL_SEC,
+                PetSettingsState.DEFAULT_ROAM_INTERVAL_SEC);
+        int careInterval = parseField(careIntervalField,
+                PetSettingsState.MIN_CARE_INTERVAL_MIN, PetSettingsState.MAX_CARE_INTERVAL_MIN,
+                PetSettingsState.DEFAULT_CARE_INTERVAL_MIN);
+        int waterInterval = parseField(waterIntervalField,
+                PetSettingsState.MIN_WATER_INTERVAL_MIN, PetSettingsState.MAX_WATER_INTERVAL_MIN,
+                PetSettingsState.DEFAULT_WATER_INTERVAL_MIN);
         return sizeSlider.getValue() != state.getSizePercent()
                 || opacitySlider.getValue() != state.getOpacityPercent()
                 || themeCombo.getSelectedItem() != state.theme()
                 || (visibleCombo.getSelectedItem() == BooleanOption.ON) == state.isStartHidden()
                 || (decorationsCombo.getSelectedItem() == BooleanOption.ON) != state.isShowDecorations()
                 || careCheck.isSelected() != state.isCareEnabled()
+                || roamCheck.isSelected() != state.isRoamEnabled()
                 || roamSlider.getValue() != state.getRoamSpeed()
-                || intervalSlider.getValue() != state.getRoamIntervalSec();
+                || interval != state.getRoamIntervalSec()
+                || careInterval != state.getCareIntervalMin()
+                || waterCheck.isSelected() != state.isWaterEnabled()
+                || waterInterval != state.getWaterIntervalMin();
     }
 
     @Override
@@ -435,8 +564,18 @@ public final class PetSettingsConfigurable implements Configurable {
         state.setStartHidden(visibleCombo.getSelectedItem() != BooleanOption.ON);
         state.setShowDecorations(decorationsCombo.getSelectedItem() == BooleanOption.ON);
         state.setCareEnabled(careCheck.isSelected());
+        state.setRoamEnabled(roamCheck.isSelected());
         state.setRoamSpeed(roamSlider.getValue());
-        state.setRoamIntervalSec(intervalSlider.getValue());
+        state.setRoamIntervalSec(parseField(intervalField,
+                PetSettingsState.MIN_ROAM_INTERVAL_SEC, PetSettingsState.MAX_ROAM_INTERVAL_SEC,
+                PetSettingsState.DEFAULT_ROAM_INTERVAL_SEC));
+        state.setCareIntervalMin(parseField(careIntervalField,
+                PetSettingsState.MIN_CARE_INTERVAL_MIN, PetSettingsState.MAX_CARE_INTERVAL_MIN,
+                PetSettingsState.DEFAULT_CARE_INTERVAL_MIN));
+        state.setWaterEnabled(waterCheck.isSelected());
+        state.setWaterIntervalMin(parseField(waterIntervalField,
+                PetSettingsState.MIN_WATER_INTERVAL_MIN, PetSettingsState.MAX_WATER_INTERVAL_MIN,
+                PetSettingsState.DEFAULT_WATER_INTERVAL_MIN));
 
         service.setTheme(state.theme());
         service.setShowDecorations(state.isShowDecorations());
@@ -461,10 +600,13 @@ public final class PetSettingsConfigurable implements Configurable {
         visibleCombo.setSelectedItem(state.isStartHidden() ? BooleanOption.OFF : BooleanOption.ON);
         decorationsCombo.setSelectedItem(state.isShowDecorations() ? BooleanOption.ON : BooleanOption.OFF);
         careCheck.setSelected(state.isCareEnabled());
+        roamCheck.setSelected(state.isRoamEnabled());
         roamSlider.setValue(state.getRoamSpeed());
         roamValue.setText(String.valueOf(state.getRoamSpeed()));
-        intervalSlider.setValue(state.getRoamIntervalSec());
-        intervalValue.setText(state.getRoamIntervalSec() + "s");
+        intervalField.setText(String.valueOf(state.getRoamIntervalSec()));
+        careIntervalField.setText(String.valueOf(state.getCareIntervalMin()));
+        waterCheck.setSelected(state.isWaterEnabled());
+        waterIntervalField.setText(String.valueOf(state.getWaterIntervalMin()));
 
         service.setTheme(state.theme());
         service.setShowDecorations(state.isShowDecorations());
@@ -499,8 +641,11 @@ public final class PetSettingsConfigurable implements Configurable {
         careCheck = null;
         roamSlider = null;
         roamValue = null;
-        intervalSlider = null;
-        intervalValue = null;
+        roamCheck = null;
+        intervalField = null;
+        careIntervalField = null;
+        waterCheck = null;
+        waterIntervalField = null;
         cards.clear();
         themeLinks.clear();
         root = null;

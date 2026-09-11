@@ -131,4 +131,19 @@ public class PetCareAdvisorTest {
         // 60 分钟整（最后一次活动 30 秒前 < pause 5 分钟）→ 提醒
         assertTrue(production.shouldRemind(base + 60 * minute, true));
     }
+
+    @Test
+    public void setThresholdMs_updatesReminderBoundary() {
+        // 阈值 100ms，pause 50ms。feed() 操作的是本类字段 advisor，故此处直接复用字段。
+        advisor.onActivity(0);
+        feed(10, 80, 10);                              // 活动到 80ms，尚未达 100ms 阈值
+        assertFalse(advisor.shouldRemind(90, true));  // 90-0=90 < 100 → 不提醒
+        // 运行中把阈值从 100 调大到 200：会话起点 sessionStart 不变（未触发过提醒），需累计到 200ms 才提醒
+        advisor.setThresholdMs(200);
+        assertEquals(200, advisor.getThresholdMs());
+        feed(85, 195, 10);                             // 持续打字，保持 lastActivity 新鲜，推过 200ms
+        assertFalse(advisor.shouldRemind(199, true)); // 199-0=199 < 200 → 不提醒
+        advisor.onActivity(205);
+        assertTrue(advisor.shouldRemind(210, true));  // 210-0=210 >= 200 → 提醒
+    }
 }

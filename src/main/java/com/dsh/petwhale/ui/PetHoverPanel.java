@@ -79,8 +79,8 @@ public final class PetHoverPanel {
     private static final int BTN_PAD_X = 6;
     /** 按钮文字上下的固定留白 */
     private static final int BTN_PAD_Y = 2;
-    /** 进度条尺寸 */
-    private static final Dimension BAR_SIZE = new Dimension(110, 7);
+    /** 进度条尺寸（加高以容纳条上数值文字） */
+    private static final Dimension BAR_SIZE = new Dimension(120, 16);
 
     // === 深色系配色（参考用户截图） ===
     private static final Color CARD_BG = new Color(28, 30, 46, 246);
@@ -126,9 +126,6 @@ public final class PetHoverPanel {
     private final StatBar intimacyBar;
     private final StatBar fishBar;
     private final StatBar pointsBar;
-    private final JLabel intimacyValueLabel;
-    private final JLabel fishValueLabel;
-    private final JLabel pointsValueLabel;
 
     private final Timer showTimer;
     private final Timer hideTimer;
@@ -194,18 +191,15 @@ public final class PetHoverPanel {
         statsPanel.add(profileRow);
         statsPanel.add(Box.createVerticalStrut(5));
 
-        // 行2-4：亲密度 / 小鱼干 / 点数 彩色进度条
+        // 行2-4：亲密度 / 小鱼干 / 点数 彩色进度条（数值叠加显示在条上）
         intimacyBar = new StatBar(INTIMACY_FROM, INTIMACY_TO);
-        intimacyValueLabel = valueLabel(INTIMACY_FROM);
-        statsPanel.add(statRow("亲密度", intimacyBar, intimacyValueLabel));
+        statsPanel.add(statRow("亲密度", intimacyBar));
         statsPanel.add(Box.createVerticalStrut(4));
         fishBar = new StatBar(FISH_FROM, FISH_TO);
-        fishValueLabel = valueLabel(FISH_FROM);
-        statsPanel.add(statRow("小鱼干", fishBar, fishValueLabel));
+        statsPanel.add(statRow("小鱼干", fishBar));
         statsPanel.add(Box.createVerticalStrut(4));
         pointsBar = new StatBar(POINTS_FROM, POINTS_TO);
-        pointsValueLabel = valueLabel(POINTS_FROM);
-        statsPanel.add(statRow("点数", pointsBar, pointsValueLabel));
+        statsPanel.add(statRow("点数", pointsBar));
 
         this.statsWindow = new JWindow();
         statsWindow.setAlwaysOnTop(true);
@@ -512,32 +506,18 @@ public final class PetHoverPanel {
                 + PetSettingsState.intimacyTitle(intimacy) + "</b></font></html>");
 
         intimacyBar.setPercent(PetSettingsState.intimacyProgress(intimacy));
-        intimacyValueLabel.setText(String.valueOf(intimacy));
+        intimacyBar.setValueText(String.valueOf(intimacy));
         fishBar.setPercent(PetSettingsState.fishProgress(settings.getFishCount()));
-        fishValueLabel.setText("\u00d7" + settings.getFishCount());
+        fishBar.setValueText("\u00d7" + settings.getFishCount());
         pointsBar.setPercent(PetSettingsState.pointsProgress(settings.getPoints()));
-        pointsValueLabel.setText(String.valueOf(settings.getPoints()));
+        pointsBar.setValueText(String.valueOf(settings.getPoints()));
     }
 
     /**
-     * 彩色数值标签（粗体 11）。固定宽度 + 右对齐：三条数值宽度不同（如 ×0 与 500），
-     * 不锁宽会让行宽参差、进度条跟着错位。加宽到 42 保证“×99 / 500”都能放下。
+     * 一行进度条：左侧固定宽标签（右对齐）+ 进度条横向撑满（数值叠加显示在条上）。
+     * 使用 GridBagLayout 让两列严格对齐，避免 FlowLayout 因内容宽度不同而错位。
      */
-    private static JLabel valueLabel(Color color) {
-        JLabel label = new JLabel();
-        label.setForeground(color);
-        label.setFont(label.getFont().deriveFont(Font.BOLD, 11f));
-        label.setHorizontalAlignment(SwingConstants.RIGHT);
-        label.setPreferredSize(new Dimension(42, label.getPreferredSize().height));
-        label.setMinimumSize(label.getPreferredSize());
-        return label;
-    }
-
-    /**
-     * 一行进度条：标签右对齐 + 进度条左对齐 + 数值右对齐。
-     * 使用 GridBagLayout 让三列严格对齐，避免 FlowLayout 因内容宽度不同而错位。
-     */
-    private static JComponent statRow(String caption, JComponent bar, JComponent value) {
+    private static JComponent statRow(String caption, JComponent bar) {
         JPanel row = new JPanel(new GridBagLayout());
         row.setOpaque(false);
         row.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -559,21 +539,13 @@ public final class PetHoverPanel {
         gbc.insets = new Insets(0, 0, 0, 6);
         row.add(cap, gbc);
 
-        // 列1：进度条（横向撑满，左对齐）
+        // 列1：进度条（横向撑满，左对齐；数值叠加显示在条中央）
         gbc.gridx = 1;
         gbc.weightx = 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.anchor = GridBagConstraints.WEST;
-        gbc.insets = new Insets(0, 0, 0, 6);
-        row.add(bar, gbc);
-
-        // 列2：数值（固定宽，右对齐）
-        gbc.gridx = 2;
-        gbc.weightx = 0;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.anchor = GridBagConstraints.EAST;
         gbc.insets = new Insets(0, 0, 0, 0);
-        row.add(value, gbc);
+        row.add(bar, gbc);
 
         return row;
     }
@@ -634,12 +606,14 @@ public final class PetHoverPanel {
     }
 
     /**
-     * 通用彩色进度条：圆角深色槽 + 指定色渐变填充 + 细描边，纯自绘组件。
+     * 通用彩色进度条：圆角深色槽 + 指定色渐变填充 + 细描边 + 条上居中数值文字，纯自绘组件。
      */
     private static final class StatBar extends JComponent {
         private final Color fillFrom;
         private final Color fillTo;
         private int percent;
+        /** 条上叠加显示的数值文字（如 "60" / "×20" / "120"），可为空 */
+        private String valueText = "";
 
         StatBar(Color fillFrom, Color fillTo) {
             this.fillFrom = fillFrom;
@@ -650,6 +624,11 @@ public final class PetHoverPanel {
 
         void setPercent(int value) {
             this.percent = Math.max(0, Math.min(100, value));
+            repaint();
+        }
+
+        void setValueText(String text) {
+            this.valueText = text == null ? "" : text;
             repaint();
         }
 
@@ -675,6 +654,22 @@ public final class PetHoverPanel {
                 // 细描边
                 g2.setColor(BAR_BORDER);
                 g2.drawRoundRect(0, 0, getWidth() - 1, h - 1, h, h);
+
+                // 条上居中数值（深色描边 + 白色字，保证在任意底色上都清晰）
+                if (!valueText.isEmpty()) {
+                    g2.setFont(g2.getFont().deriveFont(Font.BOLD, 11f));
+                    FontMetrics fm = g2.getFontMetrics();
+                    int tx = (getWidth() - fm.stringWidth(valueText)) / 2;
+                    int ty = (h + fm.getAscent() - fm.getDescent()) / 2;
+                    g2.setColor(new Color(20, 24, 38, 200));
+                    for (int dx = -1; dx <= 1; dx++) {
+                        for (int dy = -1; dy <= 1; dy++) {
+                            g2.drawString(valueText, tx + dx, ty + dy);
+                        }
+                    }
+                    g2.setColor(new Color(255, 255, 255, 240));
+                    g2.drawString(valueText, tx, ty);
+                }
             } finally {
                 g2.dispose();
             }
@@ -703,8 +698,9 @@ public final class PetHoverPanel {
                 g2.fillRect(0, 0, getWidth(), getHeight());
                 g2.setComposite(java.awt.AlphaComposite.SrcOver);
 
+                // 满铺卡片背景到整个面板边界，消除胶囊与窗口背景之间的透明空隙/1px 接缝
                 g2.setColor(CARD_BG);
-                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, CORNER, CORNER);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), CORNER, CORNER);
                 g2.setColor(CARD_BORDER);
                 g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, CORNER, CORNER);
             } finally {
@@ -745,11 +741,16 @@ public final class PetHoverPanel {
                 g2.setComposite(java.awt.AlphaComposite.Clear);
                 g2.fillRect(0, 0, getWidth(), getHeight());
                 g2.setComposite(java.awt.AlphaComposite.SrcOver);
-                // 帮助图标不单独填充背景，让胶囊底色自然透出，保持与胶囊背景一致
-                g2.setColor(hovering ? BTN_HOVER : CARD_BORDER);
+                // 浅绿色背景圆（悬停时略提亮），"？"用深绿描边以保证对比清晰
+                Color bg = hovering ? new Color(206, 238, 196) : new Color(186, 226, 178);
+                Color border = new Color(120, 188, 122);
+                Color fg = new Color(34, 92, 48);
+                g2.setColor(bg);
+                g2.fillOval(0, 0, getWidth() - 1, getHeight() - 1);
+                g2.setColor(border);
                 g2.drawOval(0, 0, getWidth() - 1, getHeight() - 1);
-                g2.setColor(BTN_TEXT);
-                g2.setFont(g2.getFont().deriveFont(Font.BOLD, 9.5f));
+                g2.setColor(fg);
+                g2.setFont(g2.getFont().deriveFont(Font.BOLD, 10f));
                 FontMetrics fm = g2.getFontMetrics();
                 String q = "?";
                 int tx = (getWidth() - fm.stringWidth(q)) / 2;

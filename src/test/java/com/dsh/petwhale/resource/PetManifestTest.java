@@ -32,7 +32,8 @@ public class PetManifestTest {
         assertEquals("鲸鱼娘（原版）", m.displayName());
         assertEquals("spritesheet.webp", m.spritesheetPath());
         assertEquals(6, m.frameCount(0));
-        assertEquals(8, m.frameCount(1));
+        assertEquals(7, m.frameCount(1));
+        assertEquals(7, m.frameCount(2));
         assertEquals(6, m.frameCount(7));
         int[] idle = m.durations(PetAnimation.IDLE);
         assertEquals(6, idle.length);

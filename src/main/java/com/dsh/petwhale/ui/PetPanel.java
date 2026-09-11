@@ -240,14 +240,25 @@ public final class PetPanel extends JPanel {
         });
         advance.start();
 
-        // === 久坐关怀定时器 ===
+        // === 久坐关怀定时器（间隔可在设置页「关怀」里输入框自定义，默认 60 分钟） ===
         Timer careTimer = new Timer(60_000, e -> {
-            boolean enabled = careEnabled();
-            if (service.care().shouldRemind(System.currentTimeMillis(), enabled)) {
+            if (!careEnabled()) return;
+            service.care().setThresholdMs((long) careIntervalMin() * 60_000L);
+            if (service.care().shouldRemind(System.currentTimeMillis(), true)) {
                 frame.showBubble(PetDialogue.random("care"));
             }
         });
         careTimer.start();
+
+        // === 喝水提醒定时器（与久坐关怀共用打字活动，独立开关与间隔，默认关闭） ===
+        Timer waterTimer = new Timer(60_000, e -> {
+            if (!waterEnabled()) return;
+            service.water().setThresholdMs((long) waterIntervalMin() * 60_000L);
+            if (service.water().shouldRemind(System.currentTimeMillis(), true)) {
+                frame.showBubble(PetDialogue.random("water"));
+            }
+        });
+        waterTimer.start();
 
         // === 空闲随机台词定时器：每 35~55 秒在空闲时冒泡 ===
         Timer idleTimer = new Timer(nextIdleBubbleDelayMs(), e -> {
@@ -303,6 +314,62 @@ public final class PetPanel extends JPanel {
             return settings == null || settings.isCareEnabled();
         } catch (Throwable t) {
             return true;
+        }
+    }
+
+    /** 读"久坐关怀"提醒间隔（分钟）；设置服务不可用时回退默认值 60。 */
+    private static int careIntervalMin() {
+        try {
+            if (com.intellij.openapi.application.ApplicationManager.getApplication() == null) {
+                return PetSettingsState.DEFAULT_CARE_INTERVAL_MIN;
+            }
+            PetSettingsState settings = com.intellij.openapi.application.ApplicationManager
+                    .getApplication().getService(PetSettingsState.class);
+            return settings == null ? PetSettingsState.DEFAULT_CARE_INTERVAL_MIN : settings.getCareIntervalMin();
+        } catch (Throwable t) {
+            return PetSettingsState.DEFAULT_CARE_INTERVAL_MIN;
+        }
+    }
+
+    /** 读"自动溜达"总开关；设置服务不可用时默认关闭（需手动开启）。 */
+    private static boolean roamEnabled() {
+        try {
+            if (com.intellij.openapi.application.ApplicationManager.getApplication() == null) {
+                return PetSettingsState.DEFAULT_ROAM_ENABLED;
+            }
+            PetSettingsState settings = com.intellij.openapi.application.ApplicationManager
+                    .getApplication().getService(PetSettingsState.class);
+            return settings != null && settings.isRoamEnabled();
+        } catch (Throwable t) {
+            return PetSettingsState.DEFAULT_ROAM_ENABLED;
+        }
+    }
+
+    /** 读"喝水提醒"开关；设置服务不可用时默认关闭。 */
+    private static boolean waterEnabled() {
+        try {
+            if (com.intellij.openapi.application.ApplicationManager.getApplication() == null) {
+                return PetSettingsState.DEFAULT_WATER_ENABLED;
+            }
+            PetSettingsState settings = com.intellij.openapi.application.ApplicationManager
+                    .getApplication().getService(PetSettingsState.class);
+            return settings != null && settings.isWaterEnabled();
+        } catch (Throwable t) {
+            return PetSettingsState.DEFAULT_WATER_ENABLED;
+        }
+    }
+
+    /** 读"喝水提醒"间隔（分钟）；设置服务不可用时回退默认值 60。 */
+    private static int waterIntervalMin() {
+        try {
+            if (com.intellij.openapi.application.ApplicationManager.getApplication() == null) {
+                return PetSettingsState.DEFAULT_WATER_INTERVAL_MIN;
+            }
+            PetSettingsState settings = com.intellij.openapi.application.ApplicationManager
+                    .getApplication().getService(PetSettingsState.class);
+            return settings == null ? PetSettingsState.DEFAULT_WATER_INTERVAL_MIN : settings.getWaterIntervalMin();
+        } catch (Throwable t) {
+            return PetSettingsState.DEFAULT_WATER_INTERVAL_MIN;
         }
     }
 
@@ -467,6 +534,10 @@ public final class PetPanel extends JPanel {
     private void tickRoam() {
         long now = System.currentTimeMillis();
         if (frame == null || !frame.isPetVisible()) {
+            roaming = false;
+            return;
+        }
+        if (!roamEnabled()) { // 设置页「自动溜达」关闭时永不自动跑动（默认关闭）
             roaming = false;
             return;
         }

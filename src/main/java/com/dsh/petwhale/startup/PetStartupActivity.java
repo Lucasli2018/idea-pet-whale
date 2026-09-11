@@ -66,8 +66,9 @@ public final class PetStartupActivity implements StartupActivity, StartupActivit
     }
 
     /**
-     * 安装全局文档变更监听：任何编辑器打字都算"活跃"，喂给 {@link com.dsh.petwhale.state.PetCareAdvisor}
-     * 做久坐关怀计时。装失败只降级（关怀功能失效），绝不影响桌宠本体。
+     * 安装全局文档变更监听：任何编辑器打字都算"活跃"，同时喂给久坐关怀顾问
+     * （{@link com.dsh.petwhale.state.PetCareAdvisor}）与喝水提醒顾问做计时。
+     * 装失败只降级（关怀/喝水提醒失效），绝不影响桌宠本体。
      */
     private static void installTypingListener() {
         if (typingListenerInstalled) return;
@@ -82,7 +83,9 @@ public final class PetStartupActivity implements StartupActivity, StartupActivit
                                 PetStateService svc = com.intellij.openapi.application.ApplicationManager
                                         .getApplication().getService(PetStateService.class);
                                 if (svc != null) {
-                                    svc.care().onActivity(System.currentTimeMillis());
+                                    long now = System.currentTimeMillis();
+                                    svc.care().onActivity(now);
+                                    svc.water().onActivity(now);
                                 }
                             }
                         });

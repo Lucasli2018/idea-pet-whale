@@ -24,7 +24,7 @@ public final class PetCareAdvisor {
     /** 活动间隔超过 5 分钟视为"离开休息"，会话清零 */
     public static final long DEFAULT_PAUSE_MS = 5L * 60 * 1000;
 
-    private final long thresholdMs;
+    private long thresholdMs;
     private final long pauseMs;
     /** 是否有进行中的活跃会话 */
     private boolean hasSession;
@@ -42,6 +42,22 @@ public final class PetCareAdvisor {
     PetCareAdvisor(long thresholdMs, long pauseMs) {
         this.thresholdMs = thresholdMs;
         this.pauseMs = pauseMs;
+    }
+
+    /**
+     * 运行时调整提醒阈值（毫秒）。由设置页「关怀/喝水间隔」输入框经 PetPanel 周期调用写入，
+     * 允许用户在桌宠运行期间动态改变提醒节奏而不需重启。
+     * 仅更新阈值，会话累计状态（sessionStart / lastActivity）保持不变。
+     */
+    public synchronized void setThresholdMs(long thresholdMs) {
+        if (thresholdMs > 0) {
+            this.thresholdMs = thresholdMs;
+        }
+    }
+
+    /** 当前提醒阈值（毫秒），测试与调试用。 */
+    public synchronized long getThresholdMs() {
+        return thresholdMs;
     }
 
     /**

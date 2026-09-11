@@ -150,6 +150,41 @@ public class PetSettingsStateTest {
         assertEquals(PetSettingsState.DEFAULT_INTIMACY, state.getIntimacy());
         assertEquals(PetSettingsState.DEFAULT_FISH_COUNT, state.getFishCount());
         assertEquals(PetSettingsState.DEFAULT_POINTS, state.getPoints());
+        // 新增：自动溜达默认关闭；关怀/喝水间隔默认 60 分钟；喝水提醒默认关闭
+        assertFalse(state.isRoamEnabled());
+        assertEquals(PetSettingsState.DEFAULT_ROAM_INTERVAL_SEC, state.getRoamIntervalSec());
+        assertTrue(state.isCareEnabled());
+        assertEquals(PetSettingsState.DEFAULT_CARE_INTERVAL_MIN, state.getCareIntervalMin());
+        assertFalse(state.isWaterEnabled());
+        assertEquals(PetSettingsState.DEFAULT_WATER_INTERVAL_MIN, state.getWaterIntervalMin());
+    }
+
+    @Test
+    public void newIntervalSettings_clampAndToggle() {
+        PetSettingsState state = new PetSettingsState();
+        // careIntervalMin clamp
+        state.setCareIntervalMin(0);
+        assertEquals(PetSettingsState.MIN_CARE_INTERVAL_MIN, state.getCareIntervalMin());
+        state.setCareIntervalMin(99999);
+        assertEquals(PetSettingsState.MAX_CARE_INTERVAL_MIN, state.getCareIntervalMin());
+        state.setCareIntervalMin(45);
+        assertEquals(45, state.getCareIntervalMin());
+
+        // waterIntervalMin clamp
+        state.setWaterIntervalMin(-5);
+        assertEquals(PetSettingsState.MIN_WATER_INTERVAL_MIN, state.getWaterIntervalMin());
+        state.setWaterIntervalMin(12345);
+        assertEquals(PetSettingsState.MAX_WATER_INTERVAL_MIN, state.getWaterIntervalMin());
+
+        // 开关
+        state.setRoamEnabled(true);
+        assertTrue(state.isRoamEnabled());
+        state.setRoamEnabled(false);
+        assertFalse(state.isRoamEnabled());
+        state.setWaterEnabled(true);
+        assertTrue(state.isWaterEnabled());
+        state.setWaterEnabled(false);
+        assertFalse(state.isWaterEnabled());
     }
 
     @Test
@@ -258,5 +293,24 @@ public class PetSettingsStateTest {
         assertEquals(0, target.getIntimacy());
         assertEquals(0, target.getFishCount());
         assertEquals(0, target.getPoints());
+    }
+
+    @Test
+    public void loadState_transfersNewCareAndRoamFields() {
+        PetSettingsState dirty = new PetSettingsState();
+        dirty.setRoamEnabled(true);
+        dirty.setCareEnabled(false);
+        dirty.setCareIntervalMin(30);
+        dirty.setWaterEnabled(true);
+        dirty.setWaterIntervalMin(90);
+
+        PetSettingsState target = new PetSettingsState();
+        target.loadState(dirty);
+
+        assertTrue(target.isRoamEnabled());
+        assertFalse(target.isCareEnabled());
+        assertEquals(30, target.getCareIntervalMin());
+        assertTrue(target.isWaterEnabled());
+        assertEquals(90, target.getWaterIntervalMin());
     }
 }
